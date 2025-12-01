@@ -8,14 +8,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @SpringBootApplication
 @RestController
-@RequestMapping("/qq")
+@RequestMapping("/")
 public class DemotwoApplication {
 
   public static void main(String[] args) {
     SpringApplication.run(DemotwoApplication.class, args);
   }
 
-  @GetMapping("/x")
+  @GetMapping("/")
   public String hello() {
     return "Hey, Spring Boot 的 Hello World !";
   }

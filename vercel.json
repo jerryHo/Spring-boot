@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "Dockerfile",
+      "use": "@vercel/docker",
+      "config": {
+        "builder": "docker-buildx"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/"  // 转发所有请求到 Spring Boot 应用
+    }
+  ]
+}
