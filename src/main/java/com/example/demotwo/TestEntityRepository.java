@@ -1,6 +1,6 @@
-package com.example.demotwo;
+// package com.example.demotwo;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+// import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface TestEntityRepository extends JpaRepository<TestEntity, Long> {
-}
+// public interface TestEntityRepository extends JpaRepository<TestEntity, Long> {
+// }
