@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Spring Boot 父工程（统一管理依赖版本） -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.7</version>
+        <relativePath/>
+    </parent>
+
+    <!-- 项目基本信息 -->
+    <groupId>com.example</groupId>
+    <artifactId>demotwo</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>demotwo</name>
+    <description>Demo project for Spring Boot</description>
+
+    <!-- 配置属性 -->
+    <properties>
+        <java.version>17</java.version> <!-- 与编译版本一致 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding> <!-- 统一编码 -->
+    </properties>
+
+    <!-- 依赖管理 -->
+    <dependencies>
+        <!-- Spring Web 核心依赖（提供 MVC、REST 等功能） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Data JPA 依赖（提供数据库访问层简化） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- MySQL 数据库驱动（运行时生效） -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Lombok（简化实体类代码） -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional> <!-- 不传递依赖 -->
+        </dependency>
+
+        <!-- 测试依赖（仅测试环境生效） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- 构建配置 -->
+    <build>
+        <plugins>
+            <!-- 编译插件（指定 Java 版本和 Lombok 注解处理器） -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${java.version}</source> <!-- 源码版本 -->
+                    <target>${java.version}</target> <!-- 目标版本 -->
+                    <encoding>${project.build.sourceEncoding}</encoding> <!-- 编码 -->
+                    <annotationProcessorPaths>
+                        <!-- 处理 Lombok 注解 -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- Spring Boot 插件（关键配置，支持 run、package 等命令） -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <extensions>true</extensions> <!-- 必须添加，识别 spring-boot: 命令 -->
+                <configuration>
+                    <!-- 排除 Lombok 打包（避免冲突） -->
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
