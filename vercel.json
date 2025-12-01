@@ -12,7 +12,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/"  // 转发所有请求到 Spring Boot 应用
+      "dest": "/"
     }
   ]
 }
