@@ -1,22 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "pom.xml",
-      "use": "@vercel/java",
-      "config": {
-        
-        "installCommand": "chmod +x ./mvnw && ./mvnw install -DskipTests",
-        "buildCommand": "./mvnw package -DskipTests",
-        "outputDirectory": "target"
-      }
-    }
-  ],
   "routes": [
     {
       "src": "/(.*)",
-      
-      "dest": "target/demotwo-0.0.1-SNAPSHOT.jar"
+      "dest": "/"
     }
   ]
 }
