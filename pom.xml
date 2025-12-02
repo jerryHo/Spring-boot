@@ -63,6 +63,15 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- PostgreSQL 驱动（如使用MySQL则用mysql-connector-j） -->
+<dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <scope>runtime</scope>
+</dependency>
+
+
     </dependencies>
 
     <!-- 构建配置（保持原样，确保打包正常） -->
