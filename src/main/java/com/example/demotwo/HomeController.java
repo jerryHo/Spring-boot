@@ -5,20 +5,27 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-@Controller // 🌟 Use @Controller for routing to static files
+@Controller
 @RequestMapping("/")
 public class HomeController {
 
-  // 🌟 Forward root path to index.html (no @ResponseBody)
-  @GetMapping("/")
-  public String redirectToHomePage() {
-    return "forward:/index.html";
-  }
+    // 🌟 Forwards root path to index.html (your home page)
+    @GetMapping("/")
+    public String redirectToHomePage() {
+        return "forward:/index.html";
+    }
 
-  // 🌟 Use @ResponseBody for API endpoints that return strings/JSON
-  @GetMapping("/indexx")
-  @ResponseBody
-  public String helloIndex() {
-    return "index";
-  }
+    // 🌟 Your original endpoint (unchanged)
+    @GetMapping("/indexx")
+    @ResponseBody
+    public String helloIndex() {
+        return "index";
+    }
+
+    // 🌟 NEW: Dedicated API endpoint for health check (JS will fetch this)
+    @GetMapping("/api/health")
+    @ResponseBody
+    public String healthCheck() {
+        return "OK"; // Simple response (no HTML)
+    }
 }
