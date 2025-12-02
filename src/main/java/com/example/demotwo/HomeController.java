@@ -1,21 +1,23 @@
 package com.example.demotwo;
 
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseBody;
 
-@RestController
+@Controller // 🌟 Use @Controller for routing to static files
 @RequestMapping("/")
 public class HomeController {
 
-  // Forward root path to index.html
+  // 🌟 Forward root path to index.html (no @ResponseBody)
   @GetMapping("/")
   public String redirectToHomePage() {
     return "forward:/index.html";
   }
 
-  // Keep your existing endpoint
+  // 🌟 Use @ResponseBody for API endpoints that return strings/JSON
   @GetMapping("/indexx")
+  @ResponseBody
   public String helloIndex() {
     return "index";
   }

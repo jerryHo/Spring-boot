@@ -3,7 +3,7 @@ package com.example.demotwo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-// Remove @RestController and @RequestMapping from here
+// 🌟 No @RestController/@Controller here – just the main app class
 @SpringBootApplication
 public class DemotwoApplication {
 
