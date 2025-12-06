@@ -586,50 +586,49 @@
             }, 180000); // 3 minutes = 180000ms
         }
 
-        // Format datetime for last update
-        function formatDateTime() {
-            const now = new Date();
-            return formatHongKongTime(now);
-        }
-
-        // 核心修复：将UTC时间转换为香港本地时间（GMT+8）
-        function convertToHongKongTime(timeStr) {
-            if (!timeStr) return null;
+        // 核心修复：使用Intl.DateTimeFormat精准转换香港时区
+        function formatToHongKongTime(timeStr) {
+            if (!timeStr) return '未知时间';
             
-            // 处理带Z的UTC时间、普通ISO时间、时间戳
+            // 1. 尝试解析时间字符串
             const date = new Date(timeStr);
-            
-            // 验证日期是否有效
-            if (isNaN(date.getTime())) return null;
-            
-            // 香港时区是GMT+8，直接加上8小时
-            const hongKongTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-            return hongKongTime;
-        }
-
-        // 格式化香港时间为 "YYYY-MM-DD HH:mm"
-        function formatHongKongTime(date) {
-            if (!date) return '未知时间';
-            
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            
-            return `${year}-${month}-${day} ${hours}:${minutes}`;
-        }
-
-        // 统一处理新闻时间（兼容各种格式）
-        function processNewsTime(timeStr) {
-            // 1. 如果已经是格式化好的时间（如 "2025-12-06 12:51"），直接返回
-            if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(timeStr)) {
+            if (isNaN(date.getTime())) {
+                // 如果解析失败，直接返回原字符串（兼容已格式化的时间）
                 return timeStr;
             }
+
+            // 2. 使用香港时区格式化（Asia/Hong_Kong）
+            const formatter = new Intl.DateTimeFormat('zh-HK', {
+                timeZone: 'Asia/Hong_Kong',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false // 24小时制
+            });
+
+            // 3. 格式化并处理结果（统一为YYYY-MM-DD HH:mm格式）
+            const parts = formatter.formatToParts(date);
+            let year = '', month = '', day = '', hour = '', minute = '';
             
-            // 2. 转换UTC时间为香港时间并格式化
-            const hkDate = convertToHongKongTime(timeStr);
-            return formatHongKongTime(hkDate);
+            parts.forEach(part => {
+                switch (part.type) {
+                    case 'year': year = part.value; break;
+                    case 'month': month = part.value.padStart(2, '0'); break;
+                    case 'day': day = part.value.padStart(2, '0'); break;
+                    case 'hour': hour = part.value.padStart(2, '0'); break;
+                    case 'minute': minute = part.value.padStart(2, '0'); break;
+                }
+            });
+
+            // 4. 返回标准化格式
+            return `${year}-${month}-${day} ${hour}:${minute}`;
+        }
+
+        // Format datetime for last update
+        function formatDateTime() {
+            return formatToHongKongTime(new Date());
         }
 
         // 安全获取数组数据
@@ -660,8 +659,8 @@
                         ...news,
                         source: 'rthk',
                         sourceName: '香港电台',
-                        // 处理时间：转换为香港本地时间
-                        publishTime: processNewsTime(news.publishTime || news.publishTimeFormatted || ''),
+                        // 使用精准时区转换
+                        publishTime: formatToHongKongTime(news.publishTime || news.publishTimeFormatted || ''),
                         link: news.link || news.newsUrl || '',
                         hasVideo: news.hasVideo || false,
                         hasAudio: news.hasAudio || false
@@ -683,8 +682,8 @@
                         ...news,
                         source: 'hk01',
                         sourceName: 'HK01',
-                        // 核心修复：处理HK01的UTC时间（如2025-12-06T13:46:36.000Z）
-                        publishTime: processNewsTime(news.publishTimeDatetime || news.publishTimeFormatted || news.publishTime || ''),
+                        // 优先使用原始UTC时间字段进行转换
+                        publishTime: formatToHongKongTime(news.publishTimeDatetime || news.publishTimeFormatted || news.publishTime || ''),
                         link: news.newsUrl || news.link || '',
                         hasVideo: news.hasVideo || false,
                         hasAudio: news.hasAudio || false
