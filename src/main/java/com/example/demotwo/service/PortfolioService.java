@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
+import lombok.RequiredArgsConstructor;
 
 // 修复StringUtils导入（二选一）
 import org.springframework.util.StringUtils; // 推荐：Spring内置，无需额外依赖
@@ -28,11 +29,13 @@ import org.springframework.util.StringUtils; // 推荐：Spring内置，无需�
 import java.time.LocalDateTime;
 import java.util.Set;
 
+
 /**
  * 作品集业务层
  * 处理作品集的新增、查询等核心业务逻辑
  */
 @Service
+@RequiredArgsConstructor // Lombok自动生成构造器注入
 public class PortfolioService {
 
     // 自动注入数据访问层
@@ -89,3 +92,4 @@ public class PortfolioService {
         return portfolioRepository.findAll(pageable);
     }
 }
+

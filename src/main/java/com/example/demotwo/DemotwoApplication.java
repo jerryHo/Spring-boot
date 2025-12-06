@@ -18,14 +18,14 @@ package com.example.demotwo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories; // 关键：启用JPA仓库扫描
 
-@SpringBootApplication(exclude = {
-    DataSourceAutoConfiguration.class,
-    R2dbcAutoConfiguration.class
-})
+// 1. 显式指定JPA仓库扫描路径（解决Repository Bean缺失）
+// 2. 确保扫描范围包含所有业务包
+@SpringBootApplication(scanBasePackages = "com.example.demotwo")
+@EnableJpaRepositories(basePackages = "com.example.demotwo.repository") // 强制扫描Repository包
 public class DemotwoApplication {
+
     public static void main(String[] args) {
         SpringApplication.run(DemotwoApplication.class, args);
     }

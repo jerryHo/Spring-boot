@@ -1,21 +1,40 @@
+# 核心：绑定Render的PORT环境变量（解决端口未检测到问题）
 server:
-  port: ${PORT:8080} # Render端口绑定
+  port: ${PORT:8080} # 优先使用Render的PORT变量，默认8080
+  servlet:
+    context-path: /
 
-# 新增：解决file.upload.path配置缺失
-file:
-  upload:
-    path: /app/uploads # Render服务器临时上传目录（容器内路径）
-
-# H2内存数据库配置（之前的）
+# JPA配置（确保Repository正常初始化）
 spring:
+  # 数据源配置（H2内存数据库）
   datasource:
-    url: jdbc:h2:mem:testdb
+    url: jdbc:h2:mem:demotwo_db
     driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  # JPA/Hibernate配置
   jpa:
     hibernate:
-      ddl-auto: create-drop
-  # 可选：文件上传大小限制（避免上传报错）
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      ddl-auto: update # 自动创建/更新表结构
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+    open-in-view: false # 关闭懒加载，避免报错
+  # H2控制台（可选，方便调试）
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# 文件上传配置（解决之前的file.upload.path）
+file:
+  upload:
+    path: /app/uploads
+
+# 日志配置（可选）
+logging:
+  level:
+    org.springframework.data.jpa: INFO
+    com.example.demotwo.repository: DEBUG
