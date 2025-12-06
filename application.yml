@@ -1,10 +1,21 @@
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8080} # Render端口绑定
+
+# 新增：解决file.upload.path配置缺失
+file:
+  upload:
+    path: /app/uploads # Render服务器临时上传目录（容器内路径）
+
+# H2内存数据库配置（之前的）
 spring:
-  # 用H2内存数据库，无需真实数据库，启动自动销毁
   datasource:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:
       ddl-auto: create-drop
+  # 可选：文件上传大小限制（避免上传报错）
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
