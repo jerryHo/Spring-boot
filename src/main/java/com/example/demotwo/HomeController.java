@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @RequestMapping("/")
 public class HomeController {
 
-  private final FileRepository fileRepository;
+  // private final FileRepository fileRepository;
 
-  public HomeController(FileRepository fileRepository) {
-    this.fileRepository = fileRepository;
-  }
+  // public HomeController(FileRepository fileRepository) {
+  //   this.fileRepository = fileRepository;
+  // }
 
   // 🌟 Forwards root path to index.html (your home page)
   @GetMapping("/")
@@ -39,34 +39,34 @@ public class HomeController {
     return "OK"; // Simple response (no HTML)
   }
 
-  @GetMapping("/home")
-  public String home(Authentication authentication, Model model) {
-    UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-    String username = userDetails.getUsername();
+  // @GetMapping("/home")
+  // public String home(Authentication authentication, Model model) {
+  //   UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+  //   String username = userDetails.getUsername();
 
-    // 统计文件类型数量（适配演示）
-    long docCount = fileRepository.countByUsernameAndFileTypeContaining(
-      username,
-      "doc"
-    );
-    long xlsxCount = fileRepository.countByUsernameAndFileTypeContaining(
-      username,
-      "xlsx"
-    );
-    long pngCount = fileRepository.countByUsernameAndFileTypeContaining(
-      username,
-      "png"
-    );
-    long otherCount =
-      fileRepository.countByUsernameAndFileTypeContaining(username, "txt") +
-      fileRepository.countByUsernameAndFileTypeContaining(username, "pdf");
+  //   // 统计文件类型数量（适配演示）
+  //   long docCount = fileRepository.countByUsernameAndFileTypeContaining(
+  //     username,
+  //     "doc"
+  //   );
+  //   long xlsxCount = fileRepository.countByUsernameAndFileTypeContaining(
+  //     username,
+  //     "xlsx"
+  //   );
+  //   long pngCount = fileRepository.countByUsernameAndFileTypeContaining(
+  //     username,
+  //     "png"
+  //   );
+  //   long otherCount =
+  //     fileRepository.countByUsernameAndFileTypeContaining(username, "txt") +
+  //     fileRepository.countByUsernameAndFileTypeContaining(username, "pdf");
 
-    // 传递数据给ECharts
-    model.addAttribute("docCount", docCount);
-    model.addAttribute("xlsxCount", xlsxCount);
-    model.addAttribute("pngCount", pngCount);
-    model.addAttribute("otherCount", otherCount);
+  //   // 传递数据给ECharts
+  //   model.addAttribute("docCount", docCount);
+  //   model.addAttribute("xlsxCount", xlsxCount);
+  //   model.addAttribute("pngCount", pngCount);
+  //   model.addAttribute("otherCount", otherCount);
 
-    return "home";
-  }
+  //   return "home";
+  // }
 }
