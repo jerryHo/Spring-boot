@@ -1,0 +1,58 @@
+# ==============================================
+# PURE MYSQL CONFIG (NO H2)
+# ==============================================
+server:
+  port: 8080
+  tomcat:
+    uri-encoding: GBK
+
+spring:
+  # Encoding (GBK)
+  http:
+    encoding:
+      charset: GBK
+      enabled: true
+      force: true
+
+  # MySQL DataSource (critical)
+  datasource:
+    url: jdbc:mysql://localhost:3306/testtwo?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    password:  # YOUR MySQL password (e.g., 123456)
+    hikari:
+      maximum-pool-size: 10
+      idle-timeout: 30000
+
+  # JPA/MySQL Configuration
+  jpa:
+    database: MYSQL
+    database-platform: org.hibernate.dialect.MySQL8Dialect  # For MySQL 8+
+    hibernate:
+      ddl-auto: update  # Auto-create tables (dev only)
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+
+  # Quartz Scheduler (In-memory)
+  quartz:
+    auto-startup: true
+    job-store-type: memory
+
+# 完整的日志配置（修复PID解析 + 抑制HandlerMapping警告）
+logging:
+  # 修复 %PARSER_ERROR[pid]：使用Spring Boot标准的PID占位符%pid
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS}  %-5level %pid --- [%t] %logger{36} : %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS}  %-5level %pid --- [%t] %logger{36} : %msg%n"
+  # 抑制HandlerMappingIntrospector的WARN日志（设为ERROR级别）
+  level:
+    org.springframework.web.servlet.handler.HandlerMappingIntrospector: ERROR
+    # 可选：保留业务日志级别，确保爬虫日志正常输出
+    com.example.demotwo.util.NewsCrawlera: INFO
+    org.springframework.web: INFO
+    org.seleniumhq.selenium: WARN
+  # 确保日志编码为UTF-8（避免中文日志乱码）
+  charset:
+    console: UTF-8
+    file: UTF-8

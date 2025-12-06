@@ -3,33 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spring Boot Demo | Home</title>
+    <title>Spring Boot Demo | Full-Stack Developer Portfolio</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Custom Styles -->
+    <!-- Prism.js (代码语法高亮 - 展示编码规范) -->
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <!-- Custom Styles (支持暗黑模式) -->
     <style>
-        /* Base Styles */
+        /* 基础变量 - 支持暗黑/亮色模式切换 */
         :root {
             --primary: #165DFF;
             --secondary: #6B7280;
             --light: #F9FAFB;
             --dark: #1F2937;
             --accent: #38BDF8;
+            --card-bg: #FFFFFF;
+            --body-bg: #FFFFFF;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --shadow: 0 5px 15px rgba(0,0,0,0.05);
+            --transition: all 0.3s ease;
         }
+
+        .dark-mode {
+            --primary: #3B82F6;
+            --secondary: #9CA3AF;
+            --light: #1F2937;
+            --dark: #F9FAFB;
+            --accent: #60A5FA;
+            --card-bg: #273346;
+            --body-bg: #111827;
+            --text-primary: #F9FAFB;
+            --text-secondary: #9CA3AF;
+            --shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* 全局样式 */
         body {
             font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            color: var(--dark);
+            color: var(--text-primary);
+            background-color: var(--body-bg);
             overflow-x: hidden;
+            transition: var(--transition);
         }
-        /* Navbar */
+
+        /* 导航栏 - 增强交互 */
         .navbar {
-            background-color: white !important;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            background-color: var(--card-bg) !important;
+            box-shadow: var(--shadow);
             padding: 1rem 0;
-            transition: all 0.3s ease;
+            transition: var(--transition);
+            z-index: 999;
         }
         .navbar-brand {
             font-weight: 700;
@@ -37,7 +64,7 @@
             color: var(--primary) !important;
         }
         .nav-link {
-            color: var(--secondary) !important;
+            color: var(--text-secondary) !important;
             font-weight: 500;
             margin: 0 0.8rem;
             position: relative;
@@ -58,12 +85,32 @@
         .nav-link.active {
             color: var(--primary) !important;
         }
-        /* Hero Section */
+        .theme-toggle {
+            background: var(--card-bg);
+            border: 1px solid var(--secondary);
+            color: var(--text-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .theme-toggle:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* 英雄区 - 突出技术价值 */
         .hero {
             padding: 8rem 0 6rem;
-            background: linear-gradient(135deg, #F0F7FF 0%, #E6F0FF 100%);
+            background: linear-gradient(135deg, rgba(22, 93, 255, 0.05) 0%, rgba(56, 189, 248, 0.05) 100%);
             position: relative;
             overflow: hidden;
+            transition: var(--transition);
         }
         .hero::before {
             content: '';
@@ -72,17 +119,18 @@
             right: 0;
             width: 50%;
             height: 100%;
-            background: url('https://picsum.photos/id/180/800/600') no-repeat center right;
+            background: url('https://picsum.photos/id/1/800/600') no-repeat center right;
             background-size: cover;
-            opacity: 0.1;
+            opacity: 0.08;
             z-index: 0;
+            transition: var(--transition);
         }
         .hero h1 {
             font-size: 3.5rem;
             font-weight: 800;
             line-height: 1.2;
             margin-bottom: 1.5rem;
-            color: var(--dark);
+            color: var(--text-primary);
             position: relative;
             z-index: 1;
         }
@@ -91,7 +139,7 @@
         }
         .hero p {
             font-size: 1.2rem;
-            color: var(--secondary);
+            color: var(--text-secondary);
             margin-bottom: 2rem;
             max-width: 600px;
             position: relative;
@@ -103,16 +151,33 @@
             padding: 0.8rem 2rem;
             font-weight: 600;
             border-radius: 8px;
-            transition: all 0.3s ease;
+            transition: var(--transition);
         }
         .btn-primary:hover {
             background-color: #0E4BD8;
             transform: translateY(-2px);
             box-shadow: 0 8px 15px rgba(22, 93, 255, 0.2);
         }
-        /* Features Section */
-        .features {
+        .btn-outline {
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 0.8rem 2rem;
+            font-weight: 600;
+            border-radius: 8px;
+            transition: var(--transition);
+            margin-left: 1rem;
+        }
+        .btn-outline:hover {
+            background-color: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(22, 93, 255, 0.2);
+        }
+
+        /* 技术栈展示区 - HR重点关注 */
+        .tech-stack {
             padding: 6rem 0;
+            transition: var(--transition);
         }
         .section-title {
             text-align: center;
@@ -122,59 +187,181 @@
             font-size: 2.5rem;
             font-weight: 700;
             margin-bottom: 1rem;
+            color: var(--text-primary);
         }
         .section-title p {
-            color: var(--secondary);
+            color: var(--text-secondary);
             max-width: 700px;
             margin: 0 auto;
         }
-        .feature-card {
-            background: white;
+        .tech-card {
+            background: var(--card-bg);
             border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
             height: 100%;
+            text-align: center;
         }
-        .feature-card:hover {
+        .tech-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
-        .feature-card i {
-            font-size: 2.5rem;
+        .tech-card i {
+            font-size: 3rem;
             color: var(--primary);
             margin-bottom: 1.5rem;
         }
-        .feature-card h3 {
+        .tech-card h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+        }
+        .tech-card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* 项目亮点区 - 量化成果 */
+        .highlights {
+            padding: 6rem 0;
+            background-color: var(--light);
+            transition: var(--transition);
+        }
+        .highlight-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            height: 100%;
+        }
+        .highlight-card .number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+        .highlight-card h3 {
             font-size: 1.5rem;
             font-weight: 600;
             margin-bottom: 1rem;
         }
-        .feature-card p {
-            color: var(--secondary);
+        .highlight-card p {
+            color: var(--text-secondary);
         }
-        /* API Status Section */
+
+        /* 代码片段区 - 展示编码规范 */
+        .code-snippet {
+            padding: 6rem 0;
+            transition: var(--transition);
+        }
+        .code-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+        .code-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+        pre {
+            background-color: #1E293B !important;
+            border-radius: 8px;
+            padding: 1.5rem !important;
+            overflow-x: auto;
+            margin: 0;
+        }
+        code {
+            font-size: 0.95rem !important;
+        }
+
+        /* API状态区 - 优化展示 */
         .api-status {
             padding: 4rem 0;
             background-color: var(--light);
+            transition: var(--transition);
         }
         .status-card {
-            background: white;
+            background: var(--card-bg);
             border-radius: 12px;
             padding: 2rem;
             text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            box-shadow: var(--shadow);
+            transition: var(--transition);
         }
         .status-card .badge {
             font-size: 1rem;
             padding: 0.5rem 1.2rem;
             margin-bottom: 1rem;
         }
-        /* Footer */
+
+        /* 联系/简历区 - 职业性 */
+        .contact {
+            padding: 6rem 0;
+            transition: var(--transition);
+        }
+        .contact-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 3rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: var(--transition);
+        }
+        .contact-card h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--text-primary);
+        }
+        .contact-links a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            background: var(--light);
+            color: var(--primary);
+            border-radius: 50%;
+            margin: 0 0.8rem;
+            font-size: 1.2rem;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+        .contact-links a:hover {
+            background: var(--primary);
+            color: white;
+            transform: translateY(-3px);
+        }
+        .resume-btn {
+            margin-top: 2rem;
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition);
+            display: inline-block;
+        }
+        .resume-btn:hover {
+            background: #0E4BD8;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(22, 93, 255, 0.2);
+            color: white;
+        }
+
+        /* 页脚 */
         .footer {
             background-color: var(--dark);
-            color: white;
+            color: var(--light);
             padding: 4rem 0 2rem;
+            transition: var(--transition);
         }
         .footer h4 {
             font-size: 1.2rem;
@@ -203,13 +390,17 @@
             border-top: 1px solid rgba(255,255,255,0.1);
             color: #9CA3AF;
         }
-        /* Responsive Adjustments */
+
+        /* 响应式适配 */
         @media (max-width: 992px) {
             .hero h1 {
                 font-size: 2.8rem;
             }
             .hero {
                 padding: 6rem 0 4rem;
+            }
+            .tech-card i {
+                font-size: 2.5rem;
             }
         }
         @media (max-width: 768px) {
@@ -222,118 +413,267 @@
             .hero::before {
                 display: none;
             }
+            .btn-outline {
+                margin-left: 0;
+                margin-top: 1rem;
+            }
+            .highlight-card .number {
+                font-size: 2.5rem;
+            }
+        }
+
+        /* 滚动动画 - 元素渐入 */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
+    <!-- 导航栏 (新增暗黑模式切换) -->
     <nav class="navbar navbar-expand-lg navbar-light fixed-top">
         <div class="container">
             <a class="navbar-brand" href="/">
-                <i class="fas fa-spring me-2"></i>SpringBoot Demo
+                <i class="fas fa-code me-2"></i>Dev Portfolio
             </a>
-            <!-- Fixed: Add aria-label + title for discernible text -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
                     aria-label="Open navigation menu" title="Open navigation menu">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">
                         <a class="nav-link active" aria-current="page" href="/">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#features">Features</a>
+                        <a class="nav-link" href="#tech-stack">Tech Stack</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#api-status">API Status</a>
+                        <a class="nav-link" href="#highlights">Project Highlights</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#code-snippet">Code Snippet</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#contact">Contact</a>
+                    </li>
+                    <!-- 暗黑模式切换按钮 -->
+                    <li class="nav-item ms-3">
+                        <div class="theme-toggle" id="themeToggle">
+                            <i class="fas fa-moon"></i>
+                        </div>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- Hero Section -->
+    <!-- 英雄区 (突出技术价值) -->
     <section class="hero">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-6">
-                    <h1>Powerful <span>Spring Boot</span> Application</h1>
-                    <p>Built with modern tools and deployed on Railway. Fast, reliable, and scalable backend with a beautiful frontend interface.</p>
-                    <a href="#features" class="btn btn-primary">
-                        Explore Features <i class="fas fa-arrow-right ms-2"></i>
+                    <h1>Full-Stack <span>Spring Boot</span> Developer</h1>
+                    <p>Cloud-native backend development with Java 17, responsive frontend design, and production-grade deployment on Render. Demonstrating clean code, scalability, and engineering best practices.</p>
+                    <a href="#tech-stack" class="btn btn-primary">
+                        View My Tech Stack <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
+                    <a href="#contact" class="btn btn-outline">
+                        Download Resume <i class="fas fa-download ms-2"></i>
                     </a>
                 </div>
                 <div class="col-lg-6 d-none d-lg-block">
-                    <!-- Empty for background image (via CSS) -->
+                    <!-- 背景图通过CSS实现 -->
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
+    <!-- 技术栈展示区 (HR重点关注) -->
+    <section class="tech-stack fade-in" id="tech-stack">
         <div class="container">
             <div class="section-title">
-                <h2>Key Features</h2>
-                <p>Our Spring Boot application combines powerful backend functionality with a seamless user experience</p>
+                <h2>Tech Stack & Expertise</h2>
+                <p>Core technologies used in this project, reflecting my professional skill set</p>
+            </div>
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fab fa-java"></i>
+                        <h3>Java 17</h3>
+                        <p>Modern Java features (records, sealed classes) for clean, maintainable code</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fas fa-spring"></i>
+                        <h3>Spring Boot 3</h3>
+                        <p>REST API design, dependency injection, and enterprise-grade backend architecture</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fab fa-bootstrap"></i>
+                        <h3>Bootstrap 5</h3>
+                        <p>Responsive, accessible frontend design with modern CSS variables</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fas fa-cloud"></i>
+                        <h3>Render Cloud</h3>
+                        <p>CI/CD, dynamic port configuration, and cloud-native deployment</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fas fa-database"></i>
+                        <h3>PostgreSQL</h3>
+                        <p>Relational database integration with JPA/Hibernate (ORM)</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fas fa-code"></i>
+                        <h3>REST API</h3>
+                        <p>Stateless API design, error handling, and health check endpoints</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fab fa-git"></i>
+                        <h3>Git/GitHub</h3>
+                        <p>Version control, collaborative development, and CI/CD integration</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="tech-card">
+                        <i class="fas fa-mobile-alt"></i>
+                        <h3>Responsive Design</h3>
+                        <p>100% mobile-friendly UI with adaptive layouts</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 项目亮点区 (量化成果) -->
+    <section class="highlights fade-in" id="highlights">
+        <div class="container">
+            <div class="section-title">
+                <h2>Project Highlights</h2>
+                <p>Key achievements and technical solutions demonstrated in this project</p>
             </div>
             <div class="row g-4">
                 <div class="col-md-4">
-                    <div class="feature-card">
-                        <i class="fas fa-database"></i>
-                        <h3>Cloud Database</h3>
-                        <p>Integrated with Railway SQL database (PostgreSQL/MySQL) for reliable data storage and retrieval.</p>
+                    <div class="highlight-card">
+                        <div class="number">0</div>
+                        <h3>Downtime Deployment</h3>
+                        <p>Cloud-native deployment on Render with zero downtime and dynamic port adaptation</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="feature-card">
-                        <i class="fas fa-shield-alt"></i>
-                        <h3>Secure API</h3>
-                        <p>HTTPS-enabled endpoints with SSL encryption to keep your data safe and secure.</p>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="feature-card">
-                        <i class="fas fa-mobile-alt"></i>
+                    <div class="highlight-card">
+                        <div class="number">100%</div>
                         <h3>Responsive Design</h3>
-                        <p>Works perfectly on all devices - desktops, tablets, and mobile phones.</p>
+                        <p>Mobile-first UI that works seamlessly across all device sizes (desktop/tablet/mobile)</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="feature-card">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <h3>High Performance</h3>
-                        <p>Optimized for speed with efficient database queries and minimal latency.</p>
+                    <div class="highlight-card">
+                        <div class="number">Clean</div>
+                        <h3>Maintainable Code</h3>
+                        <p>Separation of concerns (controller/routing), consistent naming conventions, and documentation</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="feature-card">
-                        <i class="fas fa-code"></i>
-                        <h3>Clean Code</h3>
-                        <p>Well-structured Spring Boot backend with modular and maintainable codebase.</p>
+                    <div class="highlight-card">
+                        <div class="number">Secure</div>
+                        <h3>API Security</h3>
+                        <p>HTTPS enforcement, SSL configuration, and secure database connection (Render)</p>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="feature-card">
-                        <i class="fas fa-cloud"></i>
-                        <h3>Cloud Deployed</h3>
-                        <p>Hosted on Railway for reliable uptime and easy scaling as your app grows.</p>
+                    <div class="highlight-card">
+                        <div class="number">Scalable</div>
+                        <h3>Backend Architecture</h3>
+                        <p>Spring Boot's dependency injection and modular design for future expansion</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="highlight-card">
+                        <div class="number">Accessible</div>
+                        <h3>WCAG Compliance</h3>
+                        <p>Screen-reader friendly UI, discernible buttons, and semantic HTML</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- API Status Section -->
-    <section class="api-status" id="api-status">
+    <!-- 代码片段区 (展示编码规范) -->
+    <section class="code-snippet fade-in" id="code-snippet">
         <div class="container">
             <div class="section-title">
-                <h2>API Status</h2>
-                <p>Check the real-time status of our core Spring Boot API endpoints</p>
+                <h2>Core Code Snippet</h2>
+                <p>Example of clean, production-ready Spring Boot controller code (my coding style)</p>
+            </div>
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="code-card">
+                        <h3>Spring Boot Controller (HomeController.java)</h3>
+                        <pre><code class="language-java">package com.example.demotwo;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+/**
+ * Home Controller - Handles routing and API endpoints
+ * Separation of concerns: Routing logic isolated from main application class
+ */
+@Controller
+@RequestMapping("/")
+public class HomeController {
+
+    // Forward root path to static home page (user experience)
+    @GetMapping("/")
+    public String redirectToHomePage() {
+        return "forward:/index.html";
+    }
+
+    // API health check endpoint (monitoring/DevOps)
+    @GetMapping("/api/health")
+    @ResponseBody
+    public String healthCheck() {
+        return "OK"; // Simple, standardized health check response
+    }
+
+    // Example API endpoint (demonstrates REST design)
+    @GetMapping("/indexx")
+    @ResponseBody
+    public String helloIndex() {
+        return "index";
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- API状态区 (优化展示) -->
+    <section class="api-status fade-in" id="api-status">
+        <div class="container">
+            <div class="section-title">
+                <h2>API Health Status</h2>
+                <p>Real-time verification of backend API functionality (deployed on Render)</p>
             </div>
             <div class="row justify-content-center">
                 <div class="col-lg-8">
@@ -347,95 +687,199 @@
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="footer" id="contact">
+    <!-- 联系/简历区 (职业性) -->
+    <section class="contact fade-in" id="contact">
+        <div class="container">
+            <div class="section-title">
+                <h2>Get In Touch</h2>
+                <p>Interested in my skills? Feel free to connect or download my resume</p>
+            </div>
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="contact-card">
+                        <h3>Let's Connect</h3>
+                        <div class="contact-links">
+                            <a href="https://github.com/your-username" target="_blank" rel="noopener noreferrer" title="GitHub"><i class="fab fa-github"></i></a>
+                            <a href="https://linkedin.com/in/your-username" target="_blank" rel="noopener noreferrer" title="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                            <a href="mailto:your-email@example.com" title="Email"><i class="fas fa-envelope"></i></a>
+                            <a href="tel:+85212345678" title="Phone"><i class="fas fa-phone"></i></a>
+                        </div>
+                        <a href="#" class="resume-btn">Download My Resume</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
         <div class="container">
             <div class="row">
                 <div class="col-md-4">
-                    <h4>SpringBoot Demo</h4>
-                    <p>A modern, cloud-deployed Spring Boot application with a beautiful frontend.</p>
+                    <h4>Developer Portfolio</h4>
+                    <p>A Spring Boot demo project showcasing full-stack development, cloud deployment, and clean code practices.</p>
                 </div>
                 <div class="col-md-4">
                     <h4>Quick Links</h4>
                     <ul class="footer-links">
                         <li><a href="/">Home</a></li>
-                        <li><a href="#features">Features</a></li>
-                        <li><a href="#api-status">API Status</a></li>
-                        <!-- Fixed: Add rel="noopener noreferrer" for target="_blank" -->
-                        <li><a href="https://github.com/jerryHo/Spring-boot" target="_blank" rel="noopener noreferrer">GitHub Repo</a></li>
+                        <li><a href="#tech-stack">Tech Stack</a></li>
+                        <li><a href="#highlights">Project Highlights</a></li>
+                        <li><a href="https://github.com/your-username/Spring-boot" target="_blank" rel="noopener noreferrer">GitHub Repo</a></li>
                     </ul>
                 </div>
                 <div class="col-md-4">
-                    <h4>Contact</h4>
+                    <h4>Deployment</h4>
                     <ul class="footer-links">
-                        <li><i class="fas fa-envelope me-2"></i> demo@springbootapp.com</li>
-                        <li><i class="fas fa-globe me-2"></i> railway.app/demo-springboot</li>
+                        <li><i class="fas fa-cloud me-2"></i> Render Cloud</li>
+                        <li><i class="fas fa-code me-2"></i> Spring Boot 3.5.7</li>
+                        <li><i class="fas fa-database me-2"></i> PostgreSQL (Render)</li>
+                        <li><i class="fas fa-globe me-2"></i> your-app.onrender.com</li>
                     </ul>
                 </div>
             </div>
             <div class="copyright">
-                &copy; 2025 SpringBoot Demo. All rights reserved. Built with Spring Boot & Bootstrap.
+                &copy; 2025 Full-Stack Developer Portfolio. All rights reserved. Built with Spring Boot & Bootstrap.
             </div>
         </div>
     </footer>
 
-    <!-- Bootstrap 5 JS + Popper -->
+    <!-- 第三方JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS (Fetch API Data) -->
-<script>
-    // Fetch data from Spring Boot backend API (use dedicated /api/health endpoint)
-    document.addEventListener('DOMContentLoaded', function() {
-        // 🌟 Changed from fetch('/') to fetch('/api/health')
-        fetch('/api/health')
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.text();
-            })
-            .then(data => {
-                // Update API status card with clean data
-                const badge = document.getElementById('loading-badge');
-                const message = document.getElementById('api-message');
-                const details = document.getElementById('api-details');
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-java.min.js"></script>
 
-                badge.className = 'badge bg-success';
-                badge.textContent = 'API Online';
-                message.textContent = 'Backend Connection Successful!';
-                details.textContent = `API Response: ${data}`; // Shows "API Response: OK"
-            })
-            .catch(error => {
-                const badge = document.getElementById('loading-badge');
-                const message = document.getElementById('api-message');
-                const details = document.getElementById('api-details');
+    <!-- 自定义JS (暗黑模式 + 滚动动画 + API状态) -->
+    <script>
+        // 1. 暗黑模式切换
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const icon = themeToggle.querySelector('i');
 
-                badge.className = 'badge bg-danger';
-                badge.textContent = 'API Offline';
-                message.textContent = 'Failed to connect to backend';
-                details.textContent = 'Check Render logs for errors.';
-                console.error('API Error:', error);
-            });
+        // 检测本地存储的主题偏好
+        if (localStorage.getItem('theme') === 'dark' || 
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            body.classList.add('dark-mode');
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
 
-        // Smooth scrolling (unchanged)
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
-        });
-
-        // Navbar scroll effect (unchanged)
-        window.addEventListener('scroll', function() {
-            const navbar = document.querySelector('.navbar');
-            if (window.scrollY > 50) {
-                navbar.style.padding = '0.7rem 0';
-                navbar.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark-mode');
+            if (body.classList.contains('dark-mode')) {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                localStorage.setItem('theme', 'dark');
             } else {
-                navbar.style.padding = '1rem 0';
-                navbar.style.boxShadow = '0 2px 10px rgba(0,0,0,0.05)';
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                localStorage.setItem('theme', 'light');
             }
         });
-    });
-</script>
+
+        // 2. 滚动动画 - 元素渐入
+        const fadeElements = document.querySelectorAll('.fade-in');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        fadeElements.forEach(element => {
+            observer.observe(element);
+        });
+
+        // 3. 数字计数动画 (项目亮点区)
+        const numberElements = document.querySelectorAll('.highlight-card .number');
+        const animateNumbers = () => {
+            numberElements.forEach(element => {
+                if (element.textContent === '0') {
+                    let count = 0;
+                    const timer = setInterval(() => {
+                        count++;
+                        element.textContent = count;
+                        if (count === 0) { // 保持"0 Downtime"的展示
+                            clearInterval(timer);
+                            element.textContent = '0';
+                        }
+                    }, 30);
+                } else if (element.textContent === '100%') {
+                    let count = 0;
+                    const timer = setInterval(() => {
+                        count += 5;
+                        element.textContent = `${count}%`;
+                        if (count >= 100) {
+                            clearInterval(timer);
+                            element.textContent = '100%';
+                        }
+                    }, 30);
+                }
+            });
+        };
+
+        // 当亮点区进入视野时触发计数动画
+        const highlightSection = document.getElementById('highlights');
+        const highlightObserver = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+                animateNumbers();
+                highlightObserver.unobserve(highlightSection);
+            }
+        }, { threshold: 0.1 });
+        highlightObserver.observe(highlightSection);
+
+        // 4. API状态检测 (使用专用的健康检查端点)
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('/api/health')
+                .then(response => {
+                    if (!response.ok) throw new Error('API Connection Failed');
+                    return response.text();
+                })
+                .then(data => {
+                    const badge = document.getElementById('loading-badge');
+                    const message = document.getElementById('api-message');
+                    const details = document.getElementById('api-details');
+
+                    badge.className = 'badge bg-success';
+                    badge.textContent = 'API Online';
+                    message.textContent = 'Backend Connection Successful!';
+                    details.textContent = `Health Check Response: ${data} (Deployed on Render)`;
+                })
+                .catch(error => {
+                    const badge = document.getElementById('loading-badge');
+                    const message = document.getElementById('api-message');
+                    const details = document.getElementById('api-details');
+
+                    badge.className = 'badge bg-danger';
+                    badge.textContent = 'API Offline';
+                    message.textContent = 'Failed to connect to backend';
+                    details.textContent = 'Please check Render deployment logs for errors.';
+                    console.error('API Error:', error);
+                });
+
+            // 平滑滚动
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // 导航栏滚动效果
+            window.addEventListener('scroll', function() {
+                const navbar = document.querySelector('.navbar');
+                if (window.scrollY > 50) {
+                    navbar.style.padding = '0.7rem 0';
+                    navbar.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                } else {
+                    navbar.style.padding = '1rem 0';
+                    navbar.style.boxShadow = '0 2px 10px rgba(0,0,0,0.05)';
+                }
+            });
+        });
+    </script>
 </body>
 </html>

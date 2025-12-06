@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>我的文件 - 个人职场资源管理平台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<!-- 导航栏 -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" href="/home">职场资源管理平台</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/home">首页</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/file/upload">上传文件</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/file/list">我的文件</a>
+                </li>
+            </ul>
+            <form action="/logout" method="post" class="d-flex">
+                <button class="btn btn-outline-light" type="submit">退出登录</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<!-- 文件列表 -->
+<div class="container mt-5">
+    <h4 class="mb-4">我的职场文件</h4>
+    <div class="card">
+        <div class="card-body">
+            <div th:if="${fileList == null or fileList.isEmpty()}" class="text-center text-muted py-5">
+                暂无上传文件，<a th:href="@{/file/upload}" class="text-primary">立即上传</a>
+            </div>
+            <table th:if="${fileList != null and not fileList.isEmpty()}" class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>文件类型</th>
+                        <th>大小(KB)</th>
+                        <th>上传时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="file : ${fileList}">
+                        <td>[[${file.originalFileName}]]</td>
+                        <td>.[[${file.fileType}]]</td>
+                        <td>[[${file.fileSize / 1024}]]</td>
+                        <td>[[${file.uploadTime}]]</td>
+                        <td>
+                            <a th:href="@{/file/download/{id}(id=${file.id})}" class="btn btn-sm btn-primary">下载</a>
+                            <a th:href="@{/file/delete/{id}(id=${file.id})}" class="btn btn-sm btn-danger" onclick="return confirm('确定删除？')">删除</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>
