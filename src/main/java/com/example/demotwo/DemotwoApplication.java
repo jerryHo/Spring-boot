@@ -21,7 +21,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration;
 
-// 排除数据源和R2DBC自动配置
 @SpringBootApplication(exclude = {
     DataSourceAutoConfiguration.class,
     R2dbcAutoConfiguration.class
