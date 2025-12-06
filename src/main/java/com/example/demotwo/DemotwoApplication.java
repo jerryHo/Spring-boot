@@ -16,9 +16,13 @@
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration; // 新增
 
-// 排除数据源自动配置
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+// 排除数据源和R2DBC自动配置
+@SpringBootApplication(exclude = {
+    DataSourceAutoConfiguration.class,
+    R2dbcAutoConfiguration.class // 排除R2DBC自动配置
+})
 public class DemotwoApplication {
     public static void main(String[] args) {
         SpringApplication.run(DemotwoApplication.class, args);
