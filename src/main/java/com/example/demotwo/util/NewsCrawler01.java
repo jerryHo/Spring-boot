@@ -893,16 +893,6 @@ public class NewsCrawler01 {
         log.info("【内存监控】{} | 已使用：{}MB | 最大可用：{}MB", stage, usedMemory, maxMemory);
     }
 
-    /**
-     * 销毁资源（Spring 销毁时调用）
-     */
-    @Override
-    protected void finalize() throws Throwable {
-        super.finalize();
-        HTTP_CLIENT.close();
-        log.info("HttpClient 已关闭，资源释放完成");
-    }
-
     // ========================= 测试入口（本地调试用） =========================
     public static void main(String[] args) {
         NewsCrawler01 crawler = new NewsCrawler01();
