@@ -654,7 +654,7 @@
             return Array.isArray(data) ? data : [];
         }
 
-        // 載入新聞數據（核心：先整合所有新聞到陣列 → 再按最新排序）
+        // 載入新聞數據（核心：雙API整合 + 最新新聞優先排序）
         function loadNewsList() {
             if (isLoading) return;
             isLoading = true;
@@ -665,52 +665,75 @@
             document.getElementById('emptyTip').style.display = 'none';
             updateSearchStatus("正在取得最新數據...");
 
-            // 通用新聞API請求（替換為你的實際API地址）
-            fetch('/api/news/all')
+            // 1. 請求RTHK新聞 API: /api/news/list
+            const fetchRthkNews = fetch('/api/news/list')
                 .then(response => {
-                    if (!response.ok) throw new Error('新聞API請求失敗');
+                    if (!response.ok) throw new Error('RTHK API請求失敗');
                     return response.json().catch(() => ({ data: [] }));
                 })
                 .then(data => {
-                    // ========== 步驟1：整合所有新聞到臨時陣列 ==========
-                    // 提取API返回的新聞數據，確保是陣列格式
-                    const rawNewsArray = safeGetArray(data.data || data);
-                    console.log(`原始新聞數據數量：${rawNewsArray.length} 條`);
-
-                    // ========== 步驟2：格式化所有新聞數據 ==========
-                    // 統一處理欄位格式、補全預設值
-                    const formattedNewsArray = rawNewsArray.map(news => ({
+                    const rthkData = safeGetArray(data.data || data);
+                    return rthkData.map(news => ({
                         ...news,
+                        source: 'rthk',
+                        sourceName: '香港電台',
                         publishTime: formatToHongKongTime(news.publishTime || news.publishTimeFormatted || ''),
                         link: news.link || news.newsUrl || '',
                         hasVideo: news.hasVideo || false,
                         hasAudio: news.hasAudio || false,
-                        sourceName: news.sourceName || '未知來源',
                         category: news.category || '未分類',
-                        title: news.title || '無標題',
-                        imageUrl: news.imageUrl || ''
+                        featured: news.featured || false
                     }));
+                })
+                .catch(error => {
+                    console.error('載入RTHK新聞失敗:', error);
+                    return [];
+                });
 
-                    // ========== 步驟3：按發布時間降序排序（最新在前） ==========
-                    // 核心排序邏輯：先解析時間戳，再比較大小
-                    const sortedNewsArray = formattedNewsArray.sort((a, b) => {
-                        // 解析發布時間為時間戳（確保能正確比較）
+            // 2. 請求HK01新聞 API: /api/news/hk01/full
+            const fetchHk01News = fetch('/api/news/hk01/full')
+                .then(response => {
+                    if (!response.ok) throw new Error('HK01 API請求失敗');
+                    return response.json().catch(() => ({ data: [] }));
+                })
+                .then(data => {
+                    const hk01Data = safeGetArray(data.data || data);
+                    return hk01Data.map(news => ({
+                        ...news,
+                        source: 'hk01',
+                        sourceName: 'HK01',
+                        publishTime: formatToHongKongTime(news.publishTimeDatetime || news.publishTimeFormatted || news.publishTime || ''),
+                        link: news.newsUrl || news.link || '',
+                        hasVideo: news.hasVideo || false,
+                        hasAudio: news.hasAudio || false,
+                        category: news.category || '未分類',
+                        featured: news.featured || false
+                    }));
+                })
+                .catch(error => {
+                    console.error('載入HK01新聞失敗:', error);
+                    return [];
+                });
+
+            // 3. 并行請求 + 整合數據 + 最新新聞優先排序
+            Promise.all([fetchRthkNews, fetchHk01News])
+                .then(([rthkNews, hk01News]) => {
+                    // 合併兩個來源的數據
+                    const allNews = [...rthkNews, ...hk01News];
+                    
+                    // 核心排序：按發布時間降序（最新新聞優先）
+                    originalNewsList = allNews.sort((a, b) => {
                         const timeA = new Date(a.publishTime || 0).getTime() || 0;
                         const timeB = new Date(b.publishTime || 0).getTime() || 0;
-                        // 降序排序：timeB > timeA 則b排在a前面（最新的新聞在前）
-                        return timeB - timeA;
+                        return timeB - timeA; // 降序排列
                     });
-
-                    // ========== 步驟4：賦值給全域陣列，用於後續篩選/搜尋 ==========
-                    originalNewsList = sortedNewsArray;
-                    console.log(`整合並排序後新聞數量：${originalNewsList.length} 條`);
                     
                     // 更新UI元數據
                     document.getElementById('newsCount').textContent = originalNewsList.length;
                     document.getElementById('lastUpdateTip').textContent = `最後更新：${formatDateTime()}`;
                     
                     // 更新搜尋狀態
-                    updateSearchStatus(`共載入 ${originalNewsList.length} 條新聞，輸入關鍵字搜尋`);
+                    updateSearchStatus(`共載入 ${originalNewsList.length} 條新聞（RTHK: ${rthkNews.length} | HK01: ${hk01News.length}），輸入關鍵字搜尋`);
                     
                     // 套用篩選+搜尋
                     applyFilterAndSearch();
@@ -805,9 +828,8 @@
             return text.replace(regex, '<span class="highlight">$1</span>');
         }
 
-        // 套用篩選+搜尋（基於已排序的原始陣列）
+        // 套用篩選+搜尋（核心邏輯）
         function applyFilterAndSearch() {
-            // 基於已排序的原始陣列進行篩選（保留排序結果）
             let filteredList = [...originalNewsList];
             const hasKeyword = currentSearchKeyword.length > 0;
 
@@ -858,7 +880,7 @@
                 document.getElementById('emptyDesc').innerHTML = emptyDesc;
                 updateSearchStatus(emptyTitle);
             } else {
-                // 渲染新聞卡片（保留「最新在前」的排序結果）
+                // 渲染新聞卡片（保持最新在前的排序）
                 document.getElementById('emptyTip').style.display = 'none';
                 document.getElementById('newsList').style.display = 'grid';
                 
