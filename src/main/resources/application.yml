@@ -1,0 +1,19 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# 强制激活 dev 环境，无需命令行参数
+spring:
+  profiles:
+    active: dev
+
+# 文件上传路径（本地适配）
+file:
+  upload:
+    path: ./uploads
+
+logging:
+  level:
+    org.hibernate: WARN
+    com.example.demotwo: INFO
