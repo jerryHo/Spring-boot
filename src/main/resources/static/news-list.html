@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="en-HK">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新闻中心 | 2025-12-05</title>
+    <title>News Center | 2025-12-05</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
     <style>
         :root {
@@ -475,14 +475,14 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1>新闻中心</h1>
+            <h1>News Center</h1>
             <div class="header-meta">
                 <div class="news-count">
-                    新闻总数：<span id="newsCount">0</span>
+                    Total News: <span id="newsCount">0</span>
                 </div>
                 <div class="update-info">
                     <i class="fa fa-clock-o"></i>
-                    <span id="lastUpdateTip">最后更新：--</span>
+                    <span id="lastUpdateTip">Last Updated: --</span>
                 </div>
             </div>
         </div>
@@ -497,22 +497,22 @@
                         type="text" 
                         class="search-input" 
                         id="searchInput"
-                        placeholder="搜索新闻标题/发布时间/来源（实时搜索）..."
+                        placeholder="Search by title/publish time/source (real-time)..."
                     >
                     <button class="clear-search-btn" id="clearSearchBtn" onclick="clearSearch()">
                         <i class="fa fa-times"></i>
                     </button>
                 </div>
-                <div class="search-status-tip" id="searchStatusTip">输入关键词开始搜索</div>
+                <div class="search-status-tip" id="searchStatusTip">Enter keywords to start searching</div>
             </div>
 
             <!-- Source Filter Buttons -->
             <div class="source-filter-group">
                 <button class="source-filter-btn active" id="sourceAll" onclick="setSource('all')">
-                    <i class="fa fa-newspaper-o"></i> 全部来源
+                    <i class="fa fa-newspaper-o"></i> All Sources
                 </button>
                 <button class="source-filter-btn" id="sourceRthk" onclick="setSource('rthk')">
-                    <i class="fa fa-broadcast-tower"></i> 香港电台
+                    <i class="fa fa-broadcast-tower"></i> RTHK
                 </button>
                 <button class="source-filter-btn" id="sourceHk01" onclick="setSource('hk01')">
                     <i class="fa fa-globe"></i> HK01
@@ -522,19 +522,19 @@
             <!-- Media Type Filter Buttons -->
             <div class="filter-group">
                 <button class="filter-btn active" id="filterAll" onclick="setFilter('all')">
-                    <i class="fa fa-th"></i> 全部
+                    <i class="fa fa-th"></i> All
                 </button>
                 <button class="filter-btn" id="filterFeatured" onclick="setFilter('featured')">
-                    <i class="fa fa-star"></i> 仅精选
+                    <i class="fa fa-star"></i> Featured Only
                 </button>
                 <button class="filter-btn" id="filterSocial" onclick="setFilter('social')">
-                    <i class="fa fa-users"></i> 仅社会新闻
+                    <i class="fa fa-users"></i> Social News Only
                 </button>
             </div>
 
             <!-- Refresh Button -->
             <button class="refresh-btn" onclick="loadNewsList()">
-                <i class="fa fa-refresh"></i> 刷新新闻
+                <i class="fa fa-refresh"></i> Refresh News
             </button>
         </div>
 
@@ -543,7 +543,7 @@
             <div class="loading-icon">
                 <i class="fa fa-spinner"></i>
             </div>
-            <p>正在获取最新新闻...</p>
+            <p>Fetching latest news...</p>
         </div>
 
         <!-- News Grid -->
@@ -554,8 +554,8 @@
             <div class="empty-icon">
                 <i class="fa fa-newspaper-o"></i>
             </div>
-            <h3 id="emptyTitle">暂无新闻数据</h3>
-            <p id="emptyDesc" style="margin-top: 8px;">请稍后重试或点击刷新按钮</p>
+            <h3 id="emptyTitle">No News Data</h3>
+            <p id="emptyDesc" style="margin-top: 8px;">Please try again later or click refresh button</p>
         </div>
     </div>
 
@@ -586,29 +586,29 @@
             }, 180000); // 3 minutes = 180000ms
         }
 
-        // 核心修复：使用Intl.DateTimeFormat精准转换香港时区
+        // Core Fix: Convert to Hong Kong Time with Intl.DateTimeFormat
         function formatToHongKongTime(timeStr) {
-            if (!timeStr) return '未知时间';
+            if (!timeStr) return 'Unknown Time';
             
-            // 1. 尝试解析时间字符串
+            // 1. Try to parse time string
             const date = new Date(timeStr);
             if (isNaN(date.getTime())) {
-                // 如果解析失败，直接返回原字符串（兼容已格式化的时间）
+                // Return original string if parsing fails (compatible with formatted time)
                 return timeStr;
             }
 
-            // 2. 使用香港时区格式化（Asia/Hong_Kong）
-            const formatter = new Intl.DateTimeFormat('zh-HK', {
+            // 2. Format with Hong Kong timezone (Asia/Hong_Kong)
+            const formatter = new Intl.DateTimeFormat('en-HK', {
                 timeZone: 'Asia/Hong_Kong',
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                hour12: false // 24小时制
+                hour12: false // 24-hour format
             });
 
-            // 3. 格式化并处理结果（统一为YYYY-MM-DD HH:mm格式）
+            // 3. Format and process results (standardize to YYYY-MM-DD HH:mm)
             const parts = formatter.formatToParts(date);
             let year = '', month = '', day = '', hour = '', minute = '';
             
@@ -622,7 +622,7 @@
                 }
             });
 
-            // 4. 返回标准化格式
+            // 4. Return standardized format
             return `${year}-${month}-${day} ${hour}:${minute}`;
         }
 
@@ -631,7 +631,7 @@
             return formatToHongKongTime(new Date());
         }
 
-        // 安全获取数组数据
+        // Safely get array data
         function safeGetArray(data) {
             return Array.isArray(data) ? data : [];
         }
@@ -645,12 +645,12 @@
             document.getElementById('loadingTip').style.display = 'block';
             document.getElementById('newsList').style.display = 'none';
             document.getElementById('emptyTip').style.display = 'none';
-            updateSearchStatus("正在加载最新数据...");
+            updateSearchStatus("Loading latest data...");
 
-            // 定义API请求
+            // Define API requests
             const fetchRthkNews = fetch('/api/news/list')
                 .then(response => {
-                    if (!response.ok) throw new Error('RTHK API请求失败');
+                    if (!response.ok) throw new Error('RTHK API request failed');
                     return response.json().catch(() => ({ data: [] }));
                 })
                 .then(data => {
@@ -658,8 +658,8 @@
                     return rthkData.map(news => ({
                         ...news,
                         source: 'rthk',
-                        sourceName: '香港电台',
-                        // 使用精准时区转换
+                        sourceName: 'RTHK',
+                        // Use precise timezone conversion
                         publishTime: formatToHongKongTime(news.publishTime || news.publishTimeFormatted || ''),
                         link: news.link || news.newsUrl || '',
                         hasVideo: news.hasVideo || false,
@@ -667,13 +667,13 @@
                     }));
                 })
                 .catch(error => {
-                    console.error('加载RTHK新闻失败:', error);
+                    console.error('Failed to load RTHK news:', error);
                     return [];
                 });
 
             const fetchHk01News = fetch('/api/news/hk01/full')
                 .then(response => {
-                    if (!response.ok) throw new Error('HK01 API请求失败');
+                    if (!response.ok) throw new Error('HK01 API request failed');
                     return response.json().catch(() => ({ data: [] }));
                 })
                 .then(data => {
@@ -682,7 +682,7 @@
                         ...news,
                         source: 'hk01',
                         sourceName: 'HK01',
-                        // 优先使用原始UTC时间字段进行转换
+                        // Prioritize original UTC time field for conversion
                         publishTime: formatToHongKongTime(news.publishTimeDatetime || news.publishTimeFormatted || news.publishTime || ''),
                         link: news.newsUrl || news.link || '',
                         hasVideo: news.hasVideo || false,
@@ -690,17 +690,17 @@
                     }));
                 })
                 .catch(error => {
-                    console.error('加载HK01新闻失败:', error);
+                    console.error('Failed to load HK01 news:', error);
                     return [];
                 });
 
-            // 并行请求两个API
+            // Parallel API requests
             Promise.all([fetchRthkNews, fetchHk01News])
                 .then(([rthkWithSource, hk01WithSource]) => {
-                    // 合并并排序（按发布时间降序）
+                    // Merge and sort (descending by publish time)
                     originalNewsList = [...rthkWithSource, ...hk01WithSource]
                         .sort((a, b) => {
-                            // 解析时间字符串进行排序
+                            // Parse time strings for sorting
                             const timeA = new Date(a.publishTime || 0).getTime() || 0;
                             const timeB = new Date(b.publishTime || 0).getTime() || 0;
                             return timeB - timeA;
@@ -708,21 +708,21 @@
                     
                     // Update UI metadata
                     document.getElementById('newsCount').textContent = originalNewsList.length;
-                    document.getElementById('lastUpdateTip').textContent = `最后更新：${formatDateTime()}`;
+                    document.getElementById('lastUpdateTip').textContent = `Last Updated: ${formatDateTime()}`;
                     
                     // Update search status
-                    updateSearchStatus(`共加载 ${originalNewsList.length} 条新闻，输入关键词搜索`);
+                    updateSearchStatus(`Loaded ${originalNewsList.length} news items. Enter keywords to search`);
                     
                     // Apply filter + search + source
                     applyFilterAndSearch();
                 })
                 .catch(error => {
-                    console.error('加载新闻失败:', error);
+                    console.error('Failed to load news:', error);
                     document.getElementById('loadingTip').style.display = 'none';
                     document.getElementById('emptyTip').style.display = 'block';
-                    document.getElementById('emptyTitle').textContent = '加载失败';
-                    document.getElementById('emptyDesc').textContent = '无法连接到服务器，请稍后重试';
-                    updateSearchStatus("加载失败：无法连接到服务器");
+                    document.getElementById('emptyTitle').textContent = 'Load Failed';
+                    document.getElementById('emptyDesc').textContent = 'Unable to connect to server. Please try again later';
+                    updateSearchStatus("Load failed: Unable to connect to server");
                 })
                 .finally(() => {
                     isLoading = false;
@@ -746,7 +746,7 @@
                 
                 // Update search status
                 if (keyword.length === 0) {
-                    updateSearchStatus("输入关键词开始搜索（支持标题/发布时间/来源）");
+                    updateSearchStatus("Enter keywords to search (supports title/publish time/source)");
                     currentSearchKeyword = '';
                     applyFilterAndSearch();
                     return;
@@ -755,7 +755,7 @@
                 // Debounce search (trigger after 500ms of inactivity)
                 searchDebounceTimer = setTimeout(() => {
                     currentSearchKeyword = keyword;
-                    updateSearchStatus(`正在搜索："${keyword}"`);
+                    updateSearchStatus(`Searching: "${keyword}"`);
                     applyFilterAndSearch();
                 }, DEBOUNCE_DELAY);
             });
@@ -772,7 +772,7 @@
             searchInput.value = '';
             document.getElementById('clearSearchBtn').classList.remove('visible');
             currentSearchKeyword = '';
-            updateSearchStatus("输入关键词开始搜索（支持标题/发布时间/来源）");
+            updateSearchStatus("Enter keywords to search (supports title/publish time/source)");
             applyFilterAndSearch();
             searchInput.focus();
         }
@@ -835,13 +835,13 @@
             if (currentFilter === 'featured') {
                 filteredList = filteredList.filter(news => news.featured === true);
             } else if (currentFilter === 'social') {
-                filteredList = filteredList.filter(news => news.category === '社會新聞');
+                filteredList = filteredList.filter(news => news.category === 'Social News');
             }
 
             // Step 3: Apply multi-field search (title + publish time + source + category)
             if (hasKeyword) {
                 filteredList = filteredList.filter(news => {
-                    // 多字段搜索（增加空值保护）
+                    // Multi-field search (add null protection)
                     const title = (news.title || '').toLowerCase();
                     const publishTime = (news.publishTime || '').toLowerCase();
                     const sourceName = (news.sourceName || '').toLowerCase();
@@ -862,23 +862,23 @@
                 document.getElementById('emptyTip').style.display = 'block';
                 document.getElementById('newsList').style.display = 'none';
                 
-                let emptyTitle = '无匹配结果';
+                let emptyTitle = 'No Matching Results';
                 let emptyDesc = '';
-                let statusText = '无结果：';
+                let statusText = 'No results: ';
                 
                 // Build status text based on active filters
                 if (currentSource !== 'all') {
-                    statusText += `${currentSource === 'rthk' ? '香港电台' : 'HK01'} `;
+                    statusText += `${currentSource === 'rthk' ? 'RTHK' : 'HK01'} `;
                 }
                 if (currentFilter !== 'all') {
-                    statusText += `${currentFilter === 'featured' ? '仅精选' : '仅社会新闻'} `;
+                    statusText += `${currentFilter === 'featured' ? 'Featured Only' : 'Social News Only'} `;
                 }
                 if (hasKeyword) {
-                    statusText += `+ 搜索"${currentSearchKeyword}"`;
+                    statusText += `+ Search for "${currentSearchKeyword}"`;
                 }
                 
-                emptyDesc = statusText.replace('无结果：', '未找到符合以下条件的新闻：')
-                    .replace('+', '、');
+                emptyDesc = statusText.replace('No results: ', 'No news found matching: ')
+                    .replace('+', ', ');
                 
                 updateSearchStatus(statusText);
                 document.getElementById('emptyTitle').textContent = emptyTitle;
@@ -895,29 +895,29 @@
                     const card = document.createElement('div');
                     card.className = 'news-card';
                     
-                    // 处理图片显示（增加空值保护）
+                    // Handle image display (add null protection)
                     const imageHtml = news.imageUrl ? 
-                        `<img src="${news.imageUrl}" alt="${news.title || '新闻图片'}" class="news-image">` : '';
+                        `<img src="${news.imageUrl}" alt="${news.title || 'News Image'}" class="news-image">` : '';
                     
-                    // 处理分类标签
+                    // Handle category tag
                     const categoryHtml = news.category ? 
                         `<div class="news-category">${highlightKeyword(news.category, currentSearchKeyword)}</div>` : '';
                     
-                    // 处理精选标签
+                    // Handle featured tag
                     const featuredTag = news.featured ? 
-                        `<span class="featured-tag">精选</span>` : '';
+                        `<span class="featured-tag">Featured</span>` : '';
                     
-                    // 处理媒体图标
+                    // Handle media icons
                     let mediaIcons = '';
                     if (news.hasVideo) mediaIcons += '<i class="fa fa-video-camera icon-video"></i>';
                     if (news.hasAudio) mediaIcons += '<i class="fa fa-volume-up icon-audio"></i>';
                     
                     // Highlight keyword in title and publish time
-                    const highlightedTitle = highlightKeyword(news.title || '无标题', currentSearchKeyword);
-                    const highlightedTime = highlightKeyword(news.publishTime || '未知时间', currentSearchKeyword);
+                    const highlightedTitle = highlightKeyword(news.title || 'No Title', currentSearchKeyword);
+                    const highlightedTime = highlightKeyword(news.publishTime || 'Unknown Time', currentSearchKeyword);
                     const highlightedSource = highlightKeyword(news.sourceName || '', currentSearchKeyword);
                     
-                    // 构建卡片HTML
+                    // Build card HTML
                     card.innerHTML = `
                         ${imageHtml}
                         <div class="card-header">
@@ -938,15 +938,15 @@
                 });
                 
                 // Update search status
-                let statusText = `找到 ${filteredList.length} 条结果：`;
+                let statusText = `Found ${filteredList.length} results: `;
                 if (currentSource !== 'all') {
-                    statusText += `${currentSource === 'rthk' ? '香港电台' : 'HK01'} `;
+                    statusText += `${currentSource === 'rthk' ? 'RTHK' : 'HK01'} `;
                 }
                 if (currentFilter !== 'all') {
-                    statusText += `${currentFilter === 'featured' ? '仅精选' : '仅社会新闻'} `;
+                    statusText += `${currentFilter === 'featured' ? 'Featured Only' : 'Social News Only'} `;
                 }
                 if (hasKeyword) {
-                    statusText += `+ 搜索"${currentSearchKeyword}"`;
+                    statusText += `+ Search for "${currentSearchKeyword}"`;
                 }
                 
                 updateSearchStatus(statusText);
