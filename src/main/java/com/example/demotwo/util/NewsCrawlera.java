@@ -364,21 +364,16 @@
 //     }
 // }
 
-
 package com.example.demotwo.util;
 
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Node;
-import org.jsoup.nodes.TextNode;
-import org.jsoup.parser.Parser;
 import org.jsoup.select.Elements;
-import org.springframework.stereotype.Component;
+import org.jsoup.parser.Parser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -386,398 +381,381 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 /**
- * 香港电台新闻爬虫工具类（优化版）
- * 适配 Render 512MB 内存限制 | 纯 Jsoup 实现 | 内存/性能优化
+ * 香港01新闻爬虫（修复无结果+内存优化+反爬适配）
+ * 核心优化：移除HttpClient.close()、多选择器兼容、内存占用控制、反爬绕过
  */
-@Slf4j
-@Component
 public class NewsCrawlera {
-
-    // ========== 核心配置（可配置化，便于 Render 环境调整） ==========
-    // 目标新闻页面URL
-    private static final String TARGET_URL = "https://news.rthk.hk/rthk/ch/latest-news.htm";
+    // ===================== 核心配置（可根据实际情况调整） =====================
+    // 目标爬取URL（香港01新闻首页，可替换为具体分类页）
+    private static final String TARGET_URL = "https://www.hk01.com/";
+    // HTTP请求超时时间（秒）
+    private static final int HTTP_TIMEOUT_SECONDS = 15;
     // 最大重试次数
-    private static final int MAX_RETRIES = 2; // 减少重试次数，降低内存叠加
+    private static final int MAX_RETRIES = 3;
     // 重试间隔（毫秒）
-    private static final long RETRY_DELAY_MS = 3000;
-    // 单次最大爬取新闻数（核心：限制内存占用）
-    private static final int MAX_NEWS_COUNT = 15;
-    // 爬取延迟（每解析1条新闻的间隔，防反爬+平滑内存）
-    private static final long PARSE_DELAY_MS = 200;
-    // HTTP 连接超时（避免阻塞）
-    private static final int HTTP_TIMEOUT_SECONDS = 20;
-    // 匹配HTTP/HTTPS链接的正则
-    private static final Pattern HTTP_HTTPS_PATTERN = Pattern.compile("https?:\\/\\/[^\\s\"']+", Pattern.UNICODE_CASE);
-    // 中文匹配正则
-    private static final Pattern CHINESE_PATTERN = Pattern.compile("[\\u4E00-\\u9FA5\\u3000-\\u303F\\uFF00-\\uFFEF]");
+    private static final int RETRY_DELAY_MS = 2000;
+    // 最大新闻条数（限制结果数量，减少内存占用）
+    private static final int MAX_NEWS_COUNT = 20;
 
-    // 复用 HttpClient（减少连接创建开销）
+    // 多选择器兼容（避免单一选择器失效，根据页面结构动态调整）
+    private static final String[] NEWS_ITEM_SELECTORS = {
+        "div[data-testid='content-card']",
+        "div.card-item",
+        "article[data-type='news']",
+        "div[class*='content-card']",
+        "div[class^='news-item']"
+    };
+
+    // 动态User-Agent池（降低反爬概率）
+    private static final String[] USER_AGENTS = {
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36"
+    };
+
+    // 真实Cookie（从浏览器复制，有效期约1周，需定期更新）
+    // 复制方式：浏览器F12 → Network → 刷新hk01 → 找请求头的Cookie值粘贴
+    private static final String COOKIE = "HK01_LANG=zh-HK; _ga=GA1.1.123456789.1735000000; _gid=GA1.1.987654321.1735000000; accept_cookie=1; HK01_SESSION=xxx";
+
+    // ===================== 单例与日志 =====================
+    private static final Logger log = LoggerFactory.getLogger(NewsCrawlera.class);
+    
+    // HttpClient单例（线程安全，无需close()，全局复用）
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_2)
             .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NORMAL)  // 跟随重定向
             .build();
 
+    // ===================== 核心方法 =====================
     /**
-     * 新闻实体类：存储单条新闻的完整信息
-     */
-    @Data
-    public static class NewsItem {
-        // 新闻中文标题
-        private String title;
-        // 新闻完整链接
-        private String link;
-        // 发布时间（格式：2025-12-06 HKT 00:11）
-        private String publishTime;
-        // 是否包含视频
-        private boolean hasVideo;
-        // 是否包含音频
-        private boolean hasAudio;
-    }
-
-    // ========================= 核心功能：提取完整新闻列表（优化版） =========================
-    /**
-     * 提取完整新闻列表（标题+链接+发布时间+视频/音频标识）
-     * @return 结构化新闻列表（最多 MAX_NEWS_COUNT 条）
+     * 爬取完整新闻列表（核心方法）
+     * @return 有效新闻列表（最多MAX_NEWS_COUNT条）
      */
     public List<NewsItem> extractCompleteNewsList() {
-        // 初始化小容量列表（减少内存扩容开销）
         List<NewsItem> newsList = new ArrayList<>(MAX_NEWS_COUNT);
         int retryCount = 0;
 
-        // 内存监控：打印初始内存使用
-        logMemoryUsage("开始提取新闻列表");
-
+        // 重试机制
         while (retryCount < MAX_RETRIES) {
             try {
-                log.info("开始提取完整新闻列表（第{}次尝试），目标URL：{}", retryCount + 1, TARGET_URL);
-
-                // ========== 优化1：纯 Jsoup + HttpClient 替代 Selenium（大幅降内存） ==========
-                // 1. 发送HTTP请求获取页面
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(TARGET_URL))
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                        .header("Accept-Encoding", "gzip, deflate")
-                        .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                        .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                        .GET()
-                        .build();
-
-                // 2. 获取响应并解析
-                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                if (response.statusCode() != 200) {
-                    log.error("HTTP请求失败，状态码：{}", response.statusCode());
+                // 1. 构建反爬请求头
+                HttpRequest request = buildAntiCrawlRequest();
+                
+                // 2. 发送请求并获取响应
+                HttpResponse<String> response = HTTP_CLIENT.send(request, 
+                        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                
+                // 校验响应状态
+                if (!validateResponse(response)) {
                     retryCount++;
-                    Thread.sleep(RETRY_DELAY_MS);
+                    log.warn("第{}次重试：响应状态异常", retryCount);
+                    TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
                     continue;
                 }
 
-                // 3. Jsoup解析（优化编码处理）
-                Document doc = Jsoup.parse(response.body(), TARGET_URL, Parser.htmlParser())
-                        .outputSettings(new Document.OutputSettings().charset(StandardCharsets.UTF_8));
+                // 3. 内存优化：只解析新闻容器部分DOM（丢弃无关内容）
+                String responseBody = response.body();
+                String newsContainerHtml = extractNewsContainerHtml(responseBody);
+                Document doc = parseMinimalDom(newsContainerHtml);
+                
+                // 释放大字符串内存
+                responseBody = null;
 
-                // 定位所有新闻行
-                Elements newsRowElements = doc.select(".ns2-row");
-                log.info("共匹配到 {} 条新闻行，本次最多提取 {} 条", newsRowElements.size(), MAX_NEWS_COUNT);
-
-                // ========== 优化2：限制爬取数量 + 逐行解析释放内存 ==========
-                int parsedCount = 0;
-                for (Element row : newsRowElements) {
-                    // 达到最大数量则停止
-                    if (parsedCount >= MAX_NEWS_COUNT) {
-                        log.info("已达到单次最大爬取数量（{}条），停止解析", MAX_NEWS_COUNT);
-                        break;
-                    }
-
-                    NewsItem news = new NewsItem();
-
-                    // 1. 提取中文标题
-                    Element titleFont = row.selectFirst(".ns2-title a font[my=my]");
-                    if (titleFont != null) {
-                        news.setTitle(titleFont.text().trim());
-                    }
-
-                    // 2. 提取新闻链接（转换为绝对链接）
-                    Element newsLink = row.selectFirst(".ns2-title a");
-                    if (newsLink != null) {
-                        String link = newsLink.attr("href").trim();
-                        news.setLink(link.startsWith("http") ? link : "https://news.rthk.hk" + link);
-                    }
-
-                    // 3. 提取发布时间
-                    Element timeFont = row.selectFirst(".ns2-created font[my=my]");
-                    if (timeFont != null) {
-                        news.setPublishTime(timeFont.text().trim());
-                    }
-
-                    // 4. 判断是否包含视频/音频
-                    Elements multimediaIcons = row.select(".multimediaIndicators img");
-                    for (Element icon : multimediaIcons) {
-                        String altText = icon.attr("alt").toLowerCase();
-                        if (altText.contains("video")) {
-                            news.setHasVideo(true);
-                        } else if (altText.contains("audio")) {
-                            news.setHasAudio(true);
-                        }
-                    }
-
-                    // 过滤无效新闻
-                    if (isValidNews(news)) {
-                        newsList.add(news);
-                        parsedCount++;
-                        // 爬取延迟（防反爬 + 平滑内存）
-                        Thread.sleep(PARSE_DELAY_MS);
-                    }
-
-                    // 内存监控：每解析5条打印一次
-                    if (parsedCount % 5 == 0) {
-                        logMemoryUsage("已解析 " + parsedCount + " 条新闻");
-                    }
+                // 4. 多选择器匹配新闻元素（避免选择器失效）
+                Elements newsElements = matchNewsElements(doc);
+                if (newsElements.isEmpty()) {
+                    retryCount++;
+                    log.warn("第{}次重试：未匹配到新闻元素", retryCount);
+                    TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
+                    continue;
                 }
 
-                // 日志展示结果（精简输出，降低IO）
-                log.info("=== 完整新闻列表提取完成 | 有效新闻数：{} ===", newsList.size());
-                newsList.forEach(item -> log.debug("新闻：[{}] {} (视频：{}, 音频：{})",
-                        item.getPublishTime(), item.getTitle(), item.isHasVideo(), item.isHasAudio()));
+                // 5. 解析新闻（逐个处理，减少内存占用）
+                parseNewsItems(newsElements, newsList);
+                
+                // 爬取成功，跳出重试
+                break;
 
-                // 内存监控：提取完成
-                logMemoryUsage("新闻列表提取完成");
-
-                return newsList;
-
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("爬虫线程被中断", e);
+                return Collections.emptyList();
             } catch (Exception e) {
                 retryCount++;
-                log.error("第{}次提取新闻列表失败：{}", retryCount, e.getMessage());
-                if (retryCount >= MAX_RETRIES) {
-                    log.error("所有重试次数已用尽，返回空列表", e);
-                    return Collections.emptyList();
-                }
-                // 重试前等待
+                log.error("第{}次爬取异常", retryCount, e);
                 try {
-                    Thread.sleep(RETRY_DELAY_MS);
+                    TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    log.error("重试等待被中断", ie);
                     return Collections.emptyList();
                 }
             }
         }
-        return Collections.emptyList();
+
+        // 日志输出结果
+        log.info("最终爬取到 {} 条有效新闻", newsList.size());
+        return newsList;
     }
 
-    // ========================= 保留功能：提取所有HTTP/HTTPS链接（优化版） =========================
-    public List<String> extractAllLinks() {
-        Set<String> allLinks = new HashSet<>(50); // 预分配容量
-        int retryCount = 0;
-
-        logMemoryUsage("开始提取所有链接");
-
-        while (retryCount < MAX_RETRIES) {
-            try {
-                log.info("开始提取所有链接（第{}次尝试），目标URL：{}", retryCount + 1, TARGET_URL);
-
-                // 发送HTTP请求
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(TARGET_URL))
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                        .GET()
-                        .build();
-
-                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                if (response.statusCode() != 200) {
-                    log.error("HTTP请求失败，状态码：{}", response.statusCode());
-                    retryCount++;
-                    Thread.sleep(RETRY_DELAY_MS);
-                    continue;
-                }
-
-                // Jsoup解析
-                Document doc = Jsoup.parse(response.body(), TARGET_URL, Parser.htmlParser());
-
-                // 从属性中提取链接
-                Elements allElements = doc.getAllElements();
-                for (Element element : allElements) {
-                    element.attributes().forEach(attribute -> {
-                        String attrValue = attribute.getValue().trim();
-                        Matcher matcher = HTTP_HTTPS_PATTERN.matcher(attrValue);
-                        while (matcher.find()) {
-                            String link = matcher.group().trim().replaceAll("[.,;:\"']$", "");
-                            allLinks.add(link);
-                        }
-                    });
-                }
-
-                // 从文本节点提取链接
-                extractLinksFromTextNodes(doc, allLinks);
-
-                // 转换为列表并限制数量
-                List<String> linkList = new ArrayList<>(allLinks).stream()
-                        .limit(MAX_NEWS_COUNT * 2) // 限制链接数量
-                        .collect(Collectors.toList());
-
-                log.info("=== 所有链接提取完成 | 总数：{} ===", linkList.size());
-                logMemoryUsage("链接提取完成");
-
-                return linkList;
-
-            } catch (Exception e) {
-                retryCount++;
-                log.error("第{}次提取链接失败：{}", retryCount, e.getMessage());
-                if (retryCount >= MAX_RETRIES) {
-                    log.error("所有重试次数已用尽，返回空列表", e);
-                    return Collections.emptyList();
-                }
-                try {
-                    Thread.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    log.error("重试等待被中断", ie);
-                    return Collections.emptyList();
-                }
-            }
-        }
-        return Collections.emptyList();
-    }
-
-    // ========================= 保留功能：仅提取中文标题（优化版） =========================
-    public List<String> extractChineseTitles() {
-        List<String> chineseTitles = new ArrayList<>(MAX_NEWS_COUNT);
-        int retryCount = 0;
-
-        logMemoryUsage("开始提取中文标题");
-
-        while (retryCount < MAX_RETRIES) {
-            try {
-                log.info("开始提取中文标题（第{}次尝试），目标URL：{}", retryCount + 1, TARGET_URL);
-
-                // 发送HTTP请求
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(TARGET_URL))
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                        .GET()
-                        .build();
-
-                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                if (response.statusCode() != 200) {
-                    log.error("HTTP请求失败，状态码：{}", response.statusCode());
-                    retryCount++;
-                    Thread.sleep(RETRY_DELAY_MS);
-                    continue;
-                }
-
-                // Jsoup解析
-                Document doc = Jsoup.parse(response.body(), TARGET_URL, Parser.htmlParser())
-                        .outputSettings(new Document.OutputSettings().charset(StandardCharsets.UTF_8));
-
-                // 匹配标题元素
-                Elements titleElements = doc.select(
-                        ".ns2-title a font[my=my], h1, h2, h3, h4, " +
-                        ".sptab-title, .detailNewsSlideTitleText, .itemTitle, .title, .headline"
-                );
-
-                log.info("共匹配到 {} 个标题元素", titleElements.size());
-
-                // 提取并过滤中文标题
-                int parsedCount = 0;
-                for (Element element : titleElements) {
-                    if (parsedCount >= MAX_NEWS_COUNT) break;
-
-                    String rawText = element.text().trim();
-                    if (!rawText.isEmpty() && containsChinese(rawText)) {
-                        String cleanText = rawText.replaceAll("[\\x00-\\x1F\\x7F]", "").trim();
-                        chineseTitles.add(cleanText);
-                        parsedCount++;
-                        Thread.sleep(PARSE_DELAY_MS); // 延迟
-                    }
-                }
-
-                // 去重
-                chineseTitles = chineseTitles.stream().distinct().collect(Collectors.toList());
-
-                log.info("=== 中文标题提取完成 | 总数：{} ===", chineseTitles.size());
-                logMemoryUsage("标题提取完成");
-
-                return chineseTitles;
-
-            } catch (Exception e) {
-                retryCount++;
-                log.error("第{}次提取标题失败：{}", retryCount, e.getMessage());
-                if (retryCount >= MAX_RETRIES) {
-                    log.error("所有重试次数已用尽，返回空列表", e);
-                    return Collections.emptyList();
-                }
-                try {
-                    Thread.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    log.error("重试等待被中断", ie);
-                    return Collections.emptyList();
-                }
-            }
-        }
-        return Collections.emptyList();
-    }
-
-    // ========================= 辅助方法（优化版） =========================
+    // ===================== 辅助方法（反爬+内存优化） =====================
     /**
-     * 从文本节点中提取链接
+     * 构建反爬请求（动态UA、Cookie、完整请求头）
      */
-    private void extractLinksFromTextNodes(Node node, Set<String> links) {
-        if (node instanceof TextNode textNode) {
-            String text = textNode.text().trim();
-            Matcher matcher = HTTP_HTTPS_PATTERN.matcher(text);
-            while (matcher.find()) {
-                String link = matcher.group().trim().replaceAll("[.,;:\"']$", "");
-                links.add(link);
+    private HttpRequest buildAntiCrawlRequest() {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(TARGET_URL))
+                .header("User-Agent", getRandomUserAgent())
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .header("Accept-Encoding", "gzip, deflate")
+                .header("Accept-Language", "zh-HK,zh;q=0.9,en;q=0.8")
+                .header("Referer", "https://www.hk01.com/")
+                .header("Cookie", COOKIE)
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+                .header("DNT", "1")  // 拒绝追踪
+                .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+                .GET()
+                .build();
+    }
+
+    /**
+     * 获取随机User-Agent
+     */
+    private String getRandomUserAgent() {
+        Random random = new Random();
+        return USER_AGENTS[random.nextInt(USER_AGENTS.length)];
+    }
+
+    /**
+     * 验证响应有效性
+     */
+    private boolean validateResponse(HttpResponse<String> response) {
+        int statusCode = response.statusCode();
+        log.info("HTTP响应状态码：{}", statusCode);
+        
+        // 200为正常，其他状态码（403/401/503）均为被拦截
+        if (statusCode != 200) {
+            String shortBody = response.body().length() > 500 
+                    ? response.body().substring(0, 500) 
+                    : response.body();
+            log.error("请求被拦截，状态码：{}，响应内容：{}", statusCode, shortBody);
+            return false;
+        }
+        
+        // 校验响应体是否为空
+        if (response.body().isEmpty()) {
+            log.error("响应体为空");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 内存优化：只提取新闻容器部分HTML（减少DOM解析范围）
+     */
+    private String extractNewsContainerHtml(String fullHtml) {
+        // 新闻列表父容器（根据hk01页面结构调整，可F12查看）
+        String startTag = "<div class='news-list-container'>";  // 替换为实际父容器标签
+        String endTag = "</div>";
+
+        int startIndex = fullHtml.indexOf(startTag);
+        if (startIndex == -1) {
+            log.warn("未找到新闻父容器，解析完整页面");
+            return fullHtml;
+        }
+
+        int endIndex = fullHtml.indexOf(endTag, startIndex + startTag.length());
+        if (endIndex == -1) {
+            return fullHtml;
+        }
+
+        return fullHtml.substring(startIndex, endIndex + endTag.length());
+    }
+
+    /**
+     * 内存优化：最小化DOM解析（禁用格式化、大纲，减少内存占用）
+     */
+    private Document parseMinimalDom(String html) {
+        return Jsoup.parse(html, TARGET_URL, Parser.htmlParser())
+                .outputSettings(new Document.OutputSettings()
+                        .charset(StandardCharsets.UTF_8)
+                        .prettyPrint(false)  // 禁用格式化
+                        .outline(false)      // 禁用大纲
+                        .syntax(Document.OutputSettings.Syntax.html));
+    }
+
+    /**
+     * 多选择器匹配新闻元素
+     */
+    private Elements matchNewsElements(Document doc) {
+        Elements newsElements = new Elements();
+        for (String selector : NEWS_ITEM_SELECTORS) {
+            Elements elements = doc.select(selector);
+            log.info("选择器 [{}] 匹配到 {} 个元素", selector, elements.size());
+            if (!elements.isEmpty()) {
+                newsElements = elements;
+                break;
             }
         }
-        // 递归遍历子节点（优化：递归后清空临时节点引用）
-        for (Node child : new ArrayList<>(node.childNodes())) {
-            extractLinksFromTextNodes(child, links);
+        return newsElements;
+    }
+
+    /**
+     * 解析新闻条目（逐个处理，及时释放引用）
+     */
+    private void parseNewsItems(Elements newsElements, List<NewsItem> newsList) {
+        int count = 0;
+        for (Element card : newsElements) {
+            // 限制最大条数，避免内存溢出
+            if (count >= MAX_NEWS_COUNT) {
+                break;
+            }
+
+            try {
+                NewsItem news = parseSingleNews(card);
+                // 验证新闻有效性
+                if (isValidNews(news)) {
+                    newsList.add(news);
+                    count++;
+                }
+            } catch (Exception e) {
+                log.error("解析单条新闻失败", e);
+            } finally {
+                // 手动置空，释放Element引用（加速GC）
+                card = null;
+            }
         }
     }
 
     /**
-     * 判断文本是否包含中文
+     * 解析单条新闻
      */
-    private boolean containsChinese(String text) {
-        return CHINESE_PATTERN.matcher(text).find();
+    private NewsItem parseSingleNews(Element card) {
+        NewsItem news = new NewsItem();
+        
+        // 标题（多选择器兼容）
+        Element titleEl = card.selectFirst("h3,a[class*='title'],div[class*='title']");
+        if (titleEl != null) {
+            news.setTitle(titleEl.text().trim());
+            // 新闻链接
+            if (titleEl.tagName().equals("a")) {
+                news.setNewsUrl(absolutizeUrl(titleEl.attr("href")));
+            } else {
+                Element linkEl = card.selectFirst("a");
+                if (linkEl != null) {
+                    news.setNewsUrl(absolutizeUrl(linkEl.attr("href")));
+                }
+            }
+        }
+
+        // 分类
+        Element categoryEl = card.selectFirst("span[class*='category'],div[class*='category']");
+        if (categoryEl != null) {
+            news.setCategory(categoryEl.text().trim());
+        }
+
+        // 发布时间
+        Element timeEl = card.selectFirst("time,span[class*='time'],div[class*='time']");
+        if (timeEl != null) {
+            String timeText = timeEl.text().trim();
+            // 格式化时间（根据hk01的时间格式调整，示例：2025-12-07 10:00）
+            news.setPublishTimeFormatted(formatPublishTime(timeText));
+        }
+
+        // 图片链接
+        Element imgEl = card.selectFirst("img");
+        if (imgEl != null) {
+            news.setImageUrl(absolutizeUrl(imgEl.attr("src")));
+        }
+
+        return news;
     }
 
     /**
-     * 校验新闻是否有效（非空）
+     * 补全相对URL为绝对URL
+     */
+    private String absolutizeUrl(String relativeUrl) {
+        if (relativeUrl == null || relativeUrl.isEmpty() || relativeUrl.startsWith("http")) {
+            return relativeUrl;
+        }
+        try {
+            return URI.create(TARGET_URL).resolve(relativeUrl).toString();
+        } catch (Exception e) {
+            log.error("补全URL失败：{}", relativeUrl, e);
+            return relativeUrl;
+        }
+    }
+
+    /**
+     * 格式化发布时间（根据实际返回格式调整）
+     */
+    private String formatPublishTime(String rawTime) {
+        // 示例：rawTime = "12小時前" → 转换为当前时间偏移；或直接返回原始格式
+        // 可根据hk01的时间格式自定义逻辑，这里先返回原始值
+        return rawTime;
+    }
+
+    /**
+     * 验证新闻有效性（过滤空数据）
      */
     private boolean isValidNews(NewsItem news) {
         return news.getTitle() != null && !news.getTitle().isEmpty()
-                && news.getLink() != null && !news.getLink().isEmpty();
+                && news.getNewsUrl() != null && !news.getNewsUrl().isEmpty();
     }
 
-    /**
-     * 内存使用监控（关键：便于排查 OOM）
-     */
-    private void logMemoryUsage(String stage) {
-        Runtime runtime = Runtime.getRuntime();
-        long usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
-        long maxMemory = runtime.maxMemory() / (1024 * 1024);
-        log.info("【内存监控】{} | 已使用：{}MB | 最大可用：{}MB", stage, usedMemory, maxMemory);
+    // ===================== 内部类：新闻实体（精简字段，减少内存） =====================
+    public static class NewsItem {
+        private String title;              // 新闻标题（必要）
+        private String category;           // 新闻分类（必要）
+        private String publishTimeFormatted; // 格式化发布时间（必要）
+        private String newsUrl;            // 新闻链接（必要）
+        private String imageUrl;           // 图片链接（可选）
+
+        // Getter & Setter（精简，只保留必要字段）
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+
+        public String getCategory() { return category; }
+        public void setCategory(String category) { this.category = category; }
+
+        public String getPublishTimeFormatted() { return publishTimeFormatted; }
+        public void setPublishTimeFormatted(String publishTimeFormatted) { this.publishTimeFormatted = publishTimeFormatted; }
+
+        public String getNewsUrl() { return newsUrl; }
+        public void setNewsUrl(String newsUrl) { this.newsUrl = newsUrl; }
+
+        public String getImageUrl() { return imageUrl; }
+        public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+        @Override
+        public String toString() {
+            return "NewsItem{" +
+                    "title='" + title + '\'' +
+                    ", category='" + category + '\'' +
+                    ", publishTimeFormatted='" + publishTimeFormatted + '\'' +
+                    ", newsUrl='" + newsUrl + '\'' +
+                    '}';
+        }
     }
 
-    /**
-     * 销毁 HttpClient（Spring 销毁时调用，释放资源）
-     */
-    @Override
-    protected void finalize() throws Throwable {
-        super.finalize();
-        // 清空静态引用，帮助GC回收
-        //HTTP_CLIENT.close();
-        log.info("HttpClient 已关闭，资源释放完成");
+    // ===================== 测试方法（可选） =====================
+    public static void main(String[] args) {
+        NewsCrawlera crawler = new NewsCrawlera();
+        List<NewsItem> newsList = crawler.extractCompleteNewsList();
+        
+        // 打印结果
+        for (NewsItem news : newsList) {
+            System.out.println("===== 新闻 =====");
+            System.out.println("标题：" + news.getTitle());
+            System.out.println("分类：" + news.getCategory());
+            System.out.println("时间：" + news.getPublishTimeFormatted());
+            System.out.println("链接：" + news.getNewsUrl());
+            System.out.println("图片：" + news.getImageUrl());
+            System.out.println("================\n");
+        }
     }
 }
