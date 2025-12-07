@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en-HK">
+<html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Center | 2025-12-05</title>
+    <title>新聞中心 | 2025-12-05</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
     <style>
         :root {
@@ -12,7 +12,7 @@
             --primary-gradient: linear-gradient(135deg, #165DFF 0%, #4080FF 100%);
             --video-color: #F53F3F;
             --audio-color: #00B42A;
-            --highlight-color: #FFF700; /* For keyword highlight */
+            --highlight-color: #FFF700; /* 關鍵字高亮 */
             --text-dark: #1D2129;
             --text-gray: #4E5969;
             --text-light: #86909C;
@@ -29,7 +29,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: "Inter", "Microsoft YaHei", "PingFang SC", sans-serif;
+            font-family: "Inter", "Microsoft JhengHei", "PingFang TC", sans-serif;
         }
 
         body {
@@ -45,7 +45,7 @@
             padding: 0 16px;
         }
 
-        /* Page Header */
+        /* 頁面頭部 */
         .page-header {
             text-align: center;
             margin-bottom: 32px;
@@ -83,7 +83,7 @@
             gap: 4px;
         }
 
-        /* Search & Filter Bar */
+        /* 搜尋篩選欄 */
         .search-filter-bar {
             display: flex;
             justify-content: space-between;
@@ -93,7 +93,7 @@
             flex-wrap: wrap;
         }
 
-        /* Enhanced Search Box */
+        /* 增強搜尋框 */
         .search-box {
             flex: 1;
             min-width: 280px;
@@ -133,7 +133,7 @@
             z-index: 1;
         }
 
-        /* Clear Search Button */
+        /* 清空搜尋按鈕 */
         .clear-search-btn {
             position: absolute;
             right: 14px;
@@ -157,7 +157,7 @@
             color: var(--primary-color);
         }
 
-        /* Search Status Tip */
+        /* 搜尋狀態提示 */
         .search-status-tip {
             font-size: 12px;
             color: var(--text-light);
@@ -165,7 +165,7 @@
             padding-left: 40px;
         }
 
-        /* Filter Buttons */
+        /* 篩選按鈕組 */
         .filter-group {
             display: flex;
             gap: 8px;
@@ -194,7 +194,7 @@
             color: var(--primary-color);
         }
 
-        /* News Source Filter */
+        /* 來源篩選按鈕組 */
         .source-filter-group {
             display: flex;
             gap: 8px;
@@ -223,7 +223,7 @@
             color: var(--primary-color);
         }
 
-        /* Refresh Button */
+        /* 刷新按鈕 */
         .refresh-btn {
             display: flex;
             align-items: center;
@@ -250,7 +250,7 @@
             transform: translateY(0);
         }
 
-        /* Loading Animation */
+        /* 載入動畫 */
         .loading {
             text-align: center;
             padding: 60px 0;
@@ -269,7 +269,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* News Grid (Card Layout) */
+        /* 新聞網格布局 */
         .news-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -387,7 +387,7 @@
             margin-left: 6px;
         }
 
-        /* Keyword Highlight */
+        /* 關鍵字高亮 */
         .highlight {
             background-color: var(--highlight-color);
             color: var(--text-dark);
@@ -396,7 +396,7 @@
             font-weight: 700;
         }
 
-        /* Empty State */
+        /* 空狀態 */
         .empty-tip {
             text-align: center;
             padding: 80px 0;
@@ -412,7 +412,7 @@
             color: var(--border-color);
         }
 
-        /* Responsive */
+        /* 響應式适配 */
         @media (max-width: 768px) {
             .page-header h1 {
                 font-size: 24px;
@@ -473,23 +473,23 @@
 </head>
 <body>
     <div class="container">
-        <!-- Page Header -->
+        <!-- 頁面頭部 -->
         <div class="page-header">
-            <h1>News Center</h1>
+            <h1>新聞中心</h1>
             <div class="header-meta">
                 <div class="news-count">
-                    Total News: <span id="newsCount">0</span>
+                    新聞總數：<span id="newsCount">0</span>
                 </div>
                 <div class="update-info">
                     <i class="fa fa-clock-o"></i>
-                    <span id="lastUpdateTip">Last Updated: --</span>
+                    <span id="lastUpdateTip">最後更新：--</span>
                 </div>
             </div>
         </div>
 
-        <!-- Search + Filter + Refresh Bar -->
+        <!-- 搜尋+篩選+刷新欄 -->
         <div class="search-filter-bar">
-            <!-- Enhanced Search Box -->
+            <!-- 增強搜尋框 -->
             <div class="search-box">
                 <div class="search-input-wrapper">
                     <i class="fa fa-search search-icon"></i>
@@ -497,118 +497,118 @@
                         type="text" 
                         class="search-input" 
                         id="searchInput"
-                        placeholder="Search by title/publish time/source (real-time)..."
+                        placeholder="搜尋新聞標題/發布時間/來源（即時搜尋）..."
                     >
                     <button class="clear-search-btn" id="clearSearchBtn" onclick="clearSearch()">
                         <i class="fa fa-times"></i>
                     </button>
                 </div>
-                <div class="search-status-tip" id="searchStatusTip">Enter keywords to start searching</div>
+                <div class="search-status-tip" id="searchStatusTip">輸入關鍵字開始搜尋</div>
             </div>
 
-            <!-- Source Filter Buttons -->
+            <!-- 來源篩選按鈕 -->
             <div class="source-filter-group">
                 <button class="source-filter-btn active" id="sourceAll" onclick="setSource('all')">
-                    <i class="fa fa-newspaper-o"></i> All Sources
+                    <i class="fa fa-newspaper-o"></i> 全部來源
                 </button>
                 <button class="source-filter-btn" id="sourceRthk" onclick="setSource('rthk')">
-                    <i class="fa fa-broadcast-tower"></i> RTHK
+                    <i class="fa fa-broadcast-tower"></i> 香港電台
                 </button>
                 <button class="source-filter-btn" id="sourceHk01" onclick="setSource('hk01')">
                     <i class="fa fa-globe"></i> HK01
                 </button>
             </div>
 
-            <!-- Media Type Filter Buttons -->
+            <!-- 類型篩選按鈕 -->
             <div class="filter-group">
                 <button class="filter-btn active" id="filterAll" onclick="setFilter('all')">
-                    <i class="fa fa-th"></i> All
+                    <i class="fa fa-th"></i> 全部
                 </button>
                 <button class="filter-btn" id="filterFeatured" onclick="setFilter('featured')">
-                    <i class="fa fa-star"></i> Featured Only
+                    <i class="fa fa-star"></i> 僅精選
                 </button>
                 <button class="filter-btn" id="filterSocial" onclick="setFilter('social')">
-                    <i class="fa fa-users"></i> Social News Only
+                    <i class="fa fa-users"></i> 僅社會新聞
                 </button>
             </div>
 
-            <!-- Refresh Button -->
+            <!-- 刷新按鈕 -->
             <button class="refresh-btn" onclick="loadNewsList()">
-                <i class="fa fa-refresh"></i> Refresh News
+                <i class="fa fa-refresh"></i> 刷新新聞
             </button>
         </div>
 
-        <!-- Loading State -->
+        <!-- 載入狀態 -->
         <div class="loading" id="loadingTip">
             <div class="loading-icon">
                 <i class="fa fa-spinner"></i>
             </div>
-            <p>Fetching latest news...</p>
+            <p>正在取得最新新聞...</p>
         </div>
 
-        <!-- News Grid -->
+        <!-- 新聞網格 -->
         <div class="news-grid" id="newsList" style="display: none;"></div>
 
-        <!-- Empty State -->
+        <!-- 空狀態 -->
         <div class="empty-tip" id="emptyTip" style="display: none;">
             <div class="empty-icon">
                 <i class="fa fa-newspaper-o"></i>
             </div>
-            <h3 id="emptyTitle">No News Data</h3>
-            <p id="emptyDesc" style="margin-top: 8px;">Please try again later or click refresh button</p>
+            <h3 id="emptyTitle">暫無新聞數據</h3>
+            <p id="emptyDesc" style="margin-top: 8px;">請稍後重試或點擊刷新按鈕</p>
         </div>
     </div>
 
     <script>
-        // Global Variables
+        // 全域變數
         let isLoading = false;
         let autoUpdateTimer = null;
-        let originalNewsList = []; // Store raw data (for filter/search)
-        let currentFilter = 'all'; // Default filter: all
-        let currentSource = 'all'; // Default source: all
-        let currentSearchKeyword = ''; // Default search: empty
-        let searchDebounceTimer = null; // For debounced search
-        const DEBOUNCE_DELAY = 500; // 500ms delay for real-time search
+        let originalNewsList = []; // 儲存原始數據（用於篩選/搜尋）
+        let currentFilter = 'all'; // 預設篩選：全部
+        let currentSource = 'all'; // 預設來源：全部
+        let currentSearchKeyword = ''; // 預設搜尋：空
+        let searchDebounceTimer = null; // 防彈搜尋計時器
+        const DEBOUNCE_DELAY = 500; // 即時搜尋防彈延遲（500ms）
 
-        // Initialize on page load
+        // 頁面載入初始化
         window.onload = function() {
             loadNewsList();
             startAutoUpdate();
-            initSearchEvents(); // Initialize search events
+            initSearchEvents(); // 初始化搜尋事件
         };
 
-        // Auto-update every 3 minutes
+        // 自動刷新（每3分鐘）
         function startAutoUpdate() {
             if (autoUpdateTimer) clearInterval(autoUpdateTimer);
             autoUpdateTimer = setInterval(() => {
-                console.log("Auto-updating news list...");
+                console.log("自動更新新聞列表...");
                 loadNewsList();
-            }, 180000); // 3 minutes = 180000ms
+            }, 180000); // 3分鐘 = 180000ms
         }
 
-        // Core Fix: Convert to Hong Kong Time with Intl.DateTimeFormat
+        // 核心：精準轉換香港時區時間
         function formatToHongKongTime(timeStr) {
-            if (!timeStr) return 'Unknown Time';
+            if (!timeStr) return '未知時間';
             
-            // 1. Try to parse time string
+            // 解析時間字串
             const date = new Date(timeStr);
             if (isNaN(date.getTime())) {
-                // Return original string if parsing fails (compatible with formatted time)
+                // 解析失敗則返回原字串
                 return timeStr;
             }
 
-            // 2. Format with Hong Kong timezone (Asia/Hong_Kong)
-            const formatter = new Intl.DateTimeFormat('en-HK', {
+            // 香港時區格式化（Asia/Hong_Kong）
+            const formatter = new Intl.DateTimeFormat('zh-HK', {
                 timeZone: 'Asia/Hong_Kong',
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                hour12: false // 24-hour format
+                hour12: false // 24小時制
             });
 
-            // 3. Format and process results (standardize to YYYY-MM-DD HH:mm)
+            // 標準化格式：YYYY-MM-DD HH:mm
             const parts = formatter.formatToParts(date);
             let year = '', month = '', day = '', hour = '', minute = '';
             
@@ -622,35 +622,34 @@
                 }
             });
 
-            // 4. Return standardized format
             return `${year}-${month}-${day} ${hour}:${minute}`;
         }
 
-        // Format datetime for last update
+        // 格式化最後更新時間
         function formatDateTime() {
             return formatToHongKongTime(new Date());
         }
 
-        // Safely get array data
+        // 安全取得陣列數據（防止非陣列報錯）
         function safeGetArray(data) {
             return Array.isArray(data) ? data : [];
         }
 
-        // Load raw news data from APIs
+        // 載入新聞數據（核心：最新新聞優先排序）
         function loadNewsList() {
             if (isLoading) return;
             isLoading = true;
 
-            // Show loading state
+            // 顯示載入狀態
             document.getElementById('loadingTip').style.display = 'block';
             document.getElementById('newsList').style.display = 'none';
             document.getElementById('emptyTip').style.display = 'none';
-            updateSearchStatus("Loading latest data...");
+            updateSearchStatus("正在取得最新數據...");
 
-            // Define API requests
+            // 請求RTHK新聞
             const fetchRthkNews = fetch('/api/news/list')
                 .then(response => {
-                    if (!response.ok) throw new Error('RTHK API request failed');
+                    if (!response.ok) throw new Error('RTHK API請求失敗');
                     return response.json().catch(() => ({ data: [] }));
                 })
                 .then(data => {
@@ -658,8 +657,7 @@
                     return rthkData.map(news => ({
                         ...news,
                         source: 'rthk',
-                        sourceName: 'RTHK',
-                        // Use precise timezone conversion
+                        sourceName: '香港電台',
                         publishTime: formatToHongKongTime(news.publishTime || news.publishTimeFormatted || ''),
                         link: news.link || news.newsUrl || '',
                         hasVideo: news.hasVideo || false,
@@ -667,13 +665,14 @@
                     }));
                 })
                 .catch(error => {
-                    console.error('Failed to load RTHK news:', error);
+                    console.error('載入RTHK新聞失敗:', error);
                     return [];
                 });
 
+            // 請求HK01新聞
             const fetchHk01News = fetch('/api/news/hk01/full')
                 .then(response => {
-                    if (!response.ok) throw new Error('HK01 API request failed');
+                    if (!response.ok) throw new Error('HK01 API請求失敗');
                     return response.json().catch(() => ({ data: [] }));
                 })
                 .then(data => {
@@ -682,7 +681,6 @@
                         ...news,
                         source: 'hk01',
                         sourceName: 'HK01',
-                        // Prioritize original UTC time field for conversion
                         publishTime: formatToHongKongTime(news.publishTimeDatetime || news.publishTimeFormatted || news.publishTime || ''),
                         link: news.newsUrl || news.link || '',
                         hasVideo: news.hasVideo || false,
@@ -690,158 +688,157 @@
                     }));
                 })
                 .catch(error => {
-                    console.error('Failed to load HK01 news:', error);
+                    console.error('載入HK01新聞失敗:', error);
                     return [];
                 });
 
-            // Parallel API requests
+            // 平行請求 + 最新新聞優先排序（核心邏輯）
             Promise.all([fetchRthkNews, fetchHk01News])
                 .then(([rthkWithSource, hk01WithSource]) => {
-                    // Merge and sort (descending by publish time)
+                    // 合併數據 + 按發布時間降序排序（最新的新聞排在最前面）
                     originalNewsList = [...rthkWithSource, ...hk01WithSource]
                         .sort((a, b) => {
-                            // Parse time strings for sorting
+                            // 解析時間戳進行排序（確保最新在前）
                             const timeA = new Date(a.publishTime || 0).getTime() || 0;
                             const timeB = new Date(b.publishTime || 0).getTime() || 0;
-                            return timeB - timeA;
+                            return timeB - timeA; // 降序：timeB > timeA 則排在前面
                         });
                     
-                    // Update UI metadata
+                    // 更新UI元數據
                     document.getElementById('newsCount').textContent = originalNewsList.length;
-                    document.getElementById('lastUpdateTip').textContent = `Last Updated: ${formatDateTime()}`;
+                    document.getElementById('lastUpdateTip').textContent = `最後更新：${formatDateTime()}`;
                     
-                    // Update search status
-                    updateSearchStatus(`Loaded ${originalNewsList.length} news items. Enter keywords to search`);
+                    // 更新搜尋狀態
+                    updateSearchStatus(`共載入 ${originalNewsList.length} 條新聞，輸入關鍵字搜尋`);
                     
-                    // Apply filter + search + source
+                    // 套用篩選+搜尋+來源
                     applyFilterAndSearch();
                 })
                 .catch(error => {
-                    console.error('Failed to load news:', error);
+                    console.error('載入新聞失敗:', error);
                     document.getElementById('loadingTip').style.display = 'none';
                     document.getElementById('emptyTip').style.display = 'block';
-                    document.getElementById('emptyTitle').textContent = 'Load Failed';
-                    document.getElementById('emptyDesc').textContent = 'Unable to connect to server. Please try again later';
-                    updateSearchStatus("Load failed: Unable to connect to server");
+                    document.getElementById('emptyTitle').textContent = '載入失敗';
+                    document.getElementById('emptyDesc').textContent = '無法連接到伺服器，請稍後重試';
+                    updateSearchStatus("載入失敗：無法連接到伺服器");
                 })
                 .finally(() => {
                     isLoading = false;
                 });
         }
 
-        // Initialize search events (real-time + clear button)
+        // 初始化搜尋事件（即時搜尋+清空按鈕）
         function initSearchEvents() {
             const searchInput = document.getElementById('searchInput');
             const clearBtn = document.getElementById('clearSearchBtn');
 
-            // Real-time search (debounced)
+            // 即時防彈搜尋
             searchInput.addEventListener('input', function() {
                 const keyword = this.value.trim().toLowerCase();
                 
-                // Show/hide clear button
+                // 顯示/隱藏清空按鈕
                 clearBtn.classList.toggle('visible', keyword.length > 0);
                 
-                // Clear old debounce timer
+                // 清除舊的防彈計時器
                 if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
                 
-                // Update search status
+                // 無關鍵字時重置
                 if (keyword.length === 0) {
-                    updateSearchStatus("Enter keywords to search (supports title/publish time/source)");
+                    updateSearchStatus("輸入關鍵字開始搜尋（支援標題/發布時間/來源）");
                     currentSearchKeyword = '';
                     applyFilterAndSearch();
                     return;
                 }
                 
-                // Debounce search (trigger after 500ms of inactivity)
+                // 防彈搜尋（停止輸入500ms後觸發）
                 searchDebounceTimer = setTimeout(() => {
                     currentSearchKeyword = keyword;
-                    updateSearchStatus(`Searching: "${keyword}"`);
+                    updateSearchStatus(`正在搜尋："${keyword}"`);
                     applyFilterAndSearch();
                 }, DEBOUNCE_DELAY);
             });
 
-            // Press ESC to clear search
+            // ESC鍵清空搜尋
             searchInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') clearSearch();
             });
         }
 
-        // Clear search input and reset
+        // 清空搜尋
         function clearSearch() {
             const searchInput = document.getElementById('searchInput');
             searchInput.value = '';
             document.getElementById('clearSearchBtn').classList.remove('visible');
             currentSearchKeyword = '';
-            updateSearchStatus("Enter keywords to search (supports title/publish time/source)");
+            updateSearchStatus("輸入關鍵字開始搜尋（支援標題/發布時間/來源）");
             applyFilterAndSearch();
             searchInput.focus();
         }
 
-        // Update search status tip
+        // 更新搜尋狀態提示
         function updateSearchStatus(text) {
             document.getElementById('searchStatusTip').textContent = text;
         }
 
-        // Set media filter (all/featured/social)
+        // 設定類型篩選（all/featured/social）
         function setFilter(filterType) {
-            // Update active state of filter buttons
+            // 更新按鈕激活狀態
             document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`filter${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`).classList.add('active');
             
-            // Update current filter
+            // 更新當前篩選條件
             currentFilter = filterType;
             
-            // Re-apply filter + search
+            // 重新套用篩選
             applyFilterAndSearch();
         }
 
-        // Set news source filter (all/rthk/hk01)
+        // 設定來源篩選（all/rthk/hk01）
         function setSource(sourceType) {
-            // Update active state of source buttons
+            // 更新按鈕激活狀態
             document.querySelectorAll('.source-filter-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`source${sourceType.charAt(0).toUpperCase() + sourceType.slice(1)}`).classList.add('active');
             
-            // Update current source
+            // 更新當前來源條件
             currentSource = sourceType;
             
-            // Re-apply filter + search
+            // 重新套用篩選
             applyFilterAndSearch();
         }
 
-        // Highlight keyword in text
+        // 關鍵字高亮
         function highlightKeyword(text, keyword) {
             if (!text || !keyword) return text;
             
-            // Escape special regex characters
+            // 轉義正則特殊字元
             const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const regex = new RegExp(`(${escapedKeyword})`, 'gi');
             
             return text.replace(regex, '<span class="highlight">$1</span>');
         }
 
-        // Apply filter + search + source to raw data
+        // 套用篩選+搜尋+來源（核心邏輯）
         function applyFilterAndSearch() {
             let filteredList = [...originalNewsList];
             const hasKeyword = currentSearchKeyword.length > 0;
 
-            // Step 1: Apply source filter
+            // 步驟1：套用來源篩選
             if (currentSource === 'rthk') {
                 filteredList = filteredList.filter(news => news.source === 'rthk');
             } else if (currentSource === 'hk01') {
                 filteredList = filteredList.filter(news => news.source === 'hk01');
             }
 
-            // Step 2: Apply media/feature filter
+            // 步驟2：套用類型篩選（社會新聞匹配「social」）
             if (currentFilter === 'featured') {
                 filteredList = filteredList.filter(news => news.featured === true);
             } else if (currentFilter === 'social') {
-                filteredList = filteredList.filter(news => news.category === 'Social News');
+                filteredList = filteredList.filter(news => news.category === '社會新聞');
             }
 
-            // Step 3: Apply multi-field search (title + publish time + source + category)
+            // 步驟3：多欄位搜尋（標題+發布時間+來源+分類）
             if (hasKeyword) {
                 filteredList = filteredList.filter(news => {
-                    // Multi-field search (add null protection)
                     const title = (news.title || '').toLowerCase();
                     const publishTime = (news.publishTime || '').toLowerCase();
                     const sourceName = (news.sourceName || '').toLowerCase();
@@ -854,37 +851,37 @@
                 });
             }
 
-            // Update UI based on filtered results
+            // 更新UI
             document.getElementById('loadingTip').style.display = 'none';
             
             if (filteredList.length === 0) {
-                // Show empty state with context
+                // 空狀態
                 document.getElementById('emptyTip').style.display = 'block';
                 document.getElementById('newsList').style.display = 'none';
                 
-                let emptyTitle = 'No Matching Results';
+                let emptyTitle = '無匹配結果';
                 let emptyDesc = '';
-                let statusText = 'No results: ';
+                let statusText = '無結果：';
                 
-                // Build status text based on active filters
+                // 建構空狀態提示
                 if (currentSource !== 'all') {
-                    statusText += `${currentSource === 'rthk' ? 'RTHK' : 'HK01'} `;
+                    statusText += `${currentSource === 'rthk' ? '香港電台' : 'HK01'} `;
                 }
                 if (currentFilter !== 'all') {
-                    statusText += `${currentFilter === 'featured' ? 'Featured Only' : 'Social News Only'} `;
+                    statusText += `${currentFilter === 'featured' ? '僅精選' : '僅社會新聞'} `;
                 }
                 if (hasKeyword) {
-                    statusText += `+ Search for "${currentSearchKeyword}"`;
+                    statusText += `+ 搜尋"${currentSearchKeyword}"`;
                 }
                 
-                emptyDesc = statusText.replace('No results: ', 'No news found matching: ')
-                    .replace('+', ', ');
+                emptyDesc = statusText.replace('無結果：', '未找到符合以下條件的新聞：')
+                    .replace('+', '、');
                 
                 updateSearchStatus(statusText);
                 document.getElementById('emptyTitle').textContent = emptyTitle;
                 document.getElementById('emptyDesc').textContent = emptyDesc;
             } else {
-                // Render filtered news cards with keyword highlight
+                // 渲染新聞卡片（保持最新在前的排序）
                 document.getElementById('emptyTip').style.display = 'none';
                 document.getElementById('newsList').style.display = 'grid';
                 
@@ -895,29 +892,29 @@
                     const card = document.createElement('div');
                     card.className = 'news-card';
                     
-                    // Handle image display (add null protection)
+                    // 圖片渲染（空值保護）
                     const imageHtml = news.imageUrl ? 
-                        `<img src="${news.imageUrl}" alt="${news.title || 'News Image'}" class="news-image">` : '';
+                        `<img src="${news.imageUrl}" alt="${news.title || '新聞圖片'}" class="news-image">` : '';
                     
-                    // Handle category tag
+                    // 分類標籤
                     const categoryHtml = news.category ? 
                         `<div class="news-category">${highlightKeyword(news.category, currentSearchKeyword)}</div>` : '';
                     
-                    // Handle featured tag
+                    // 精選標籤
                     const featuredTag = news.featured ? 
-                        `<span class="featured-tag">Featured</span>` : '';
+                        `<span class="featured-tag">精選</span>` : '';
                     
-                    // Handle media icons
+                    // 媒體圖示
                     let mediaIcons = '';
                     if (news.hasVideo) mediaIcons += '<i class="fa fa-video-camera icon-video"></i>';
                     if (news.hasAudio) mediaIcons += '<i class="fa fa-volume-up icon-audio"></i>';
                     
-                    // Highlight keyword in title and publish time
-                    const highlightedTitle = highlightKeyword(news.title || 'No Title', currentSearchKeyword);
-                    const highlightedTime = highlightKeyword(news.publishTime || 'Unknown Time', currentSearchKeyword);
+                    // 關鍵字高亮
+                    const highlightedTitle = highlightKeyword(news.title || '無標題', currentSearchKeyword);
+                    const highlightedTime = highlightKeyword(news.publishTime || '未知時間', currentSearchKeyword);
                     const highlightedSource = highlightKeyword(news.sourceName || '', currentSearchKeyword);
                     
-                    // Build card HTML
+                    // 卡片HTML
                     card.innerHTML = `
                         ${imageHtml}
                         <div class="card-header">
@@ -937,23 +934,23 @@
                     newsListEl.appendChild(card);
                 });
                 
-                // Update search status
-                let statusText = `Found ${filteredList.length} results: `;
+                // 更新搜尋狀態
+                let statusText = `找到 ${filteredList.length} 條結果：`;
                 if (currentSource !== 'all') {
-                    statusText += `${currentSource === 'rthk' ? 'RTHK' : 'HK01'} `;
+                    statusText += `${currentSource === 'rthk' ? '香港電台' : 'HK01'} `;
                 }
                 if (currentFilter !== 'all') {
-                    statusText += `${currentFilter === 'featured' ? 'Featured Only' : 'Social News Only'} `;
+                    statusText += `${currentFilter === 'featured' ? '僅精選' : '僅社會新聞'} `;
                 }
                 if (hasKeyword) {
-                    statusText += `+ Search for "${currentSearchKeyword}"`;
+                    statusText += `+ 搜尋"${currentSearchKeyword}"`;
                 }
                 
                 updateSearchStatus(statusText);
             }
         }
 
-        // Clean up timer on page close
+        // 頁面關閉時清理計時器
         window.onbeforeunload = function() {
             if (autoUpdateTimer) clearInterval(autoUpdateTimer);
             if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
