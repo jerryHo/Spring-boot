@@ -777,7 +777,7 @@ public class NewsCrawlera {
     protected void finalize() throws Throwable {
         super.finalize();
         // 清空静态引用，帮助GC回收
-        HTTP_CLIENT.close();
+        //HTTP_CLIENT.close();
         log.info("HttpClient 已关闭，资源释放完成");
     }
 }
