@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 public class NewsCrawlera {
 
     // 目标新闻页面URL
-    private static final String TARGET_URL = "https://news.rthk.hk/rthk/ch/component/k2/1834764-20251205.htm?spTabChangeable=0";
+    private static final String TARGET_URL = "https://news.rthk.hk/rthk/ch/latest-news.htm";
     // 最大重试次数
     private static final int MAX_RETRIES = 3;
     // 重试间隔（毫秒）
