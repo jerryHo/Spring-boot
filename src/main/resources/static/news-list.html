@@ -654,7 +654,7 @@
             return Array.isArray(data) ? data : [];
         }
 
-        // 載入新聞數據（核心：最新新聞優先排序）
+        // 載入新聞數據（核心：先整合所有新聞到陣列 → 再按最新排序）
         function loadNewsList() {
             if (isLoading) return;
             isLoading = true;
@@ -672,22 +672,38 @@
                     return response.json().catch(() => ({ data: [] }));
                 })
                 .then(data => {
-                    const newsData = safeGetArray(data.data || data);
-                    // 格式化新聞數據 + 按發布時間降序排序（最新在前）
-                    originalNewsList = newsData.map(news => ({
+                    // ========== 步驟1：整合所有新聞到臨時陣列 ==========
+                    // 提取API返回的新聞數據，確保是陣列格式
+                    const rawNewsArray = safeGetArray(data.data || data);
+                    console.log(`原始新聞數據數量：${rawNewsArray.length} 條`);
+
+                    // ========== 步驟2：格式化所有新聞數據 ==========
+                    // 統一處理欄位格式、補全預設值
+                    const formattedNewsArray = rawNewsArray.map(news => ({
                         ...news,
                         publishTime: formatToHongKongTime(news.publishTime || news.publishTimeFormatted || ''),
                         link: news.link || news.newsUrl || '',
                         hasVideo: news.hasVideo || false,
                         hasAudio: news.hasAudio || false,
                         sourceName: news.sourceName || '未知來源',
-                        category: news.category || '未分類'
-                    })).sort((a, b) => {
-                        // 核心排序：最新新聞優先（發布時間降序）
+                        category: news.category || '未分類',
+                        title: news.title || '無標題',
+                        imageUrl: news.imageUrl || ''
+                    }));
+
+                    // ========== 步驟3：按發布時間降序排序（最新在前） ==========
+                    // 核心排序邏輯：先解析時間戳，再比較大小
+                    const sortedNewsArray = formattedNewsArray.sort((a, b) => {
+                        // 解析發布時間為時間戳（確保能正確比較）
                         const timeA = new Date(a.publishTime || 0).getTime() || 0;
                         const timeB = new Date(b.publishTime || 0).getTime() || 0;
+                        // 降序排序：timeB > timeA 則b排在a前面（最新的新聞在前）
                         return timeB - timeA;
                     });
+
+                    // ========== 步驟4：賦值給全域陣列，用於後續篩選/搜尋 ==========
+                    originalNewsList = sortedNewsArray;
+                    console.log(`整合並排序後新聞數量：${originalNewsList.length} 條`);
                     
                     // 更新UI元數據
                     document.getElementById('newsCount').textContent = originalNewsList.length;
@@ -789,8 +805,9 @@
             return text.replace(regex, '<span class="highlight">$1</span>');
         }
 
-        // 套用篩選+搜尋（核心邏輯）
+        // 套用篩選+搜尋（基於已排序的原始陣列）
         function applyFilterAndSearch() {
+            // 基於已排序的原始陣列進行篩選（保留排序結果）
             let filteredList = [...originalNewsList];
             const hasKeyword = currentSearchKeyword.length > 0;
 
@@ -841,7 +858,7 @@
                 document.getElementById('emptyDesc').innerHTML = emptyDesc;
                 updateSearchStatus(emptyTitle);
             } else {
-                // 渲染新聞卡片（保持最新在前的排序）
+                // 渲染新聞卡片（保留「最新在前」的排序結果）
                 document.getElementById('emptyTip').style.display = 'none';
                 document.getElementById('newsList').style.display = 'grid';
                 
