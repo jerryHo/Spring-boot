@@ -450,15 +450,6 @@
 
 package com.example.demotwo.util;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-import org.jsoup.parser.Parser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -468,255 +459,345 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.parser.Parser;
+import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 @Component
 public class NewsCrawler01 {
-    // ===================== 核心修复：修正香港01最新新闻URL =====================
-    private static final String HK01_TARGET_URL = "https://www.hk01.com/latest"; // 正确的首页（包含最新新闻）
-    private static final int HTTP_TIMEOUT_SECONDS = 20;
-    private static final int MAX_RETRIES = 3;
-    private static final int MAX_NEWS_COUNT = 15;
-    private static final long RETRY_DELAY_MS = 2000;
 
-    private static final Logger log = LoggerFactory.getLogger(NewsCrawler01.class);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
+  // ===================== 核心修复：修正香港01最新新闻URL =====================
+  private static final String HK01_TARGET_URL = "https://www.hk01.com/latest"; // 正确的首页（包含最新新闻）
+  private static final int HTTP_TIMEOUT_SECONDS = 20;
+  private static final int MAX_RETRIES = 3;
+  private static final int MAX_NEWS_COUNT = 15;
+  private static final long RETRY_DELAY_MS = 2000;
 
-    // 新闻实体类
-    public static class NewsItem {
-        private String title;
-        private String link;
-        private String publishTime;
-        private String category;
+  private static final Logger log = LoggerFactory.getLogger(
+    NewsCrawler01.class
+  );
+  private static final HttpClient HTTP_CLIENT = HttpClient
+    .newBuilder()
+    .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+    .followRedirects(HttpClient.Redirect.NORMAL)
+    .build();
 
-        // Getter & Setter
-        public String getTitle() { return title; }
-        public void setTitle(String title) { this.title = title; }
-        public String getLink() { return link; }
-        public void setLink(String link) { this.link = link; }
-        public String getPublishTime() { return publishTime; }
-        public void setPublishTime(String publishTime) { this.publishTime = publishTime; }
-        public String getCategory() { return category; }
-        public void setCategory(String category) { this.category = category; }
+  // 新闻实体类
+  public static class NewsItem {
 
-        @Override
-        public String toString() {
-            return "NewsItem{标题='" + title + "', 链接='" + link + "'}";
-        }
+    private String title;
+    private String link;
+    private String publishTime;
+    private String category;
+
+    // Getter & Setter
+    public String getTitle() {
+      return title;
     }
 
-    // ===================== 核心方法：提取香港01新闻 =====================
-    public List<NewsItem> extractCompleteNewsList() {
-        List<NewsItem> newsList = new ArrayList<>();
-        int retryCount = 0;
+    public void setTitle(String title) {
+      this.title = title;
+    }
 
+    public String getLink() {
+      return link;
+    }
+
+    public void setLink(String link) {
+      this.link = link;
+    }
+
+    public String getPublishTime() {
+      return publishTime;
+    }
+
+    public void setPublishTime(String publishTime) {
+      this.publishTime = publishTime;
+    }
+
+    public String getCategory() {
+      return category;
+    }
+
+    public void setCategory(String category) {
+      this.category = category;
+    }
+
+    @Override
+    public String toString() {
+      return "NewsItem{标题='" + title + "', 链接='" + link + "'}";
+    }
+  }
+
+  // ===================== 核心方法：提取香港01新闻 =====================
+  public List<NewsItem> extractCompleteNewsList() {
+    List<NewsItem> newsList = new ArrayList<>();
+    int retryCount = 0;
+
+    // 内存监控
+    Runtime runtime = Runtime.getRuntime();
+    long usedMemory =
+      (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
+    long maxMemory = runtime.maxMemory() / 1024 / 1024;
+    log.info(
+      "【内存监控】开始提取香港01新闻列表 | 已使用：{}MB | 最大可用：{}MB",
+      usedMemory,
+      maxMemory
+    );
+
+    while (retryCount < MAX_RETRIES) {
+      try {
+        log.info(
+          "开始提取香港01新闻（第{}次尝试），目标URL：{}",
+          retryCount + 1,
+          HK01_TARGET_URL
+        );
+
+        // 1. 构建强反爬请求头
+        HttpRequest request = buildHk01Request();
+
+        // 2. 发送请求
+        HttpResponse<String> response = HTTP_CLIENT.send(
+          request,
+          HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+        );
+
+        // 3. 验证响应
+        if (!validateResponse(response)) {
+          retryCount++;
+          log.warn(
+            "第{}次请求响应无效，{}ms后重试",
+            retryCount,
+            RETRY_DELAY_MS
+          );
+          TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
+          continue;
+        }
+
+        // 4. 处理编码
+        String rawHtml = response.body();
+        String utf8Html = new String(
+          rawHtml.getBytes(StandardCharsets.UTF_8),
+          StandardCharsets.UTF_8
+        );
+
+        // 打印响应体预览（调试）
+        log.warn("=== 香港01响应体预览（前1000字符）===");
+        String preview = utf8Html.length() > 1000
+          ? utf8Html.substring(0, 1000)
+          : utf8Html;
+        log.warn(preview);
+
+        // 5. 解析HTML（修复选择器：适配香港01最新结构）
+        Document doc = Jsoup.parse(
+          utf8Html,
+          HK01_TARGET_URL,
+          Parser.htmlParser()
+        );
+
+        // ========== 核心修复：更新香港01新闻选择器 ==========
+        // 兼容多种可能的新闻容器选择器
+        Elements newsContainers = doc.select(
+          "article, .article-item, .news-card, " + // 通用新闻容器
+          "div[class*='content'], div[class*='news'], " + // 模糊匹配
+          "a[href*='/news/'], a[href*='/article/']" // 新闻链接
+        );
+
+        log.info(
+          "共匹配到 {} 个新闻容器，本次最多提取 {} 条",
+          newsContainers.size(),
+          MAX_NEWS_COUNT
+        );
+
+        // 6. 解析新闻
+        int count = 0;
+        for (Element container : newsContainers) {
+          if (count >= MAX_NEWS_COUNT) break;
+
+          NewsItem news = parseHk01News(container);
+          if (
+            news.getTitle() != null &&
+            !news.getTitle().isEmpty() &&
+            news.getLink() != null &&
+            !news.getLink().isEmpty()
+          ) {
+            newsList.add(news);
+            count++;
+            log.debug("解析到新闻：{}", news);
+          }
+        }
+
+        log.info(
+          "=== 香港01新闻提取完成 | 有效新闻数：{} ===",
+          newsList.size()
+        );
         // 内存监控
-        Runtime runtime = Runtime.getRuntime();
-        long usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
-        long maxMemory = runtime.maxMemory() / 1024 / 1024;
-        log.info("【内存监控】开始提取香港01新闻列表 | 已使用：{}MB | 最大可用：{}MB", usedMemory, maxMemory);
-
-        while (retryCount < MAX_RETRIES) {
-            try {
-                log.info("开始提取香港01新闻（第{}次尝试），目标URL：{}", retryCount + 1, HK01_TARGET_URL);
-
-                // 1. 构建强反爬请求头
-                HttpRequest request = buildHk01Request();
-
-                // 2. 发送请求
-                HttpResponse<String> response = HTTP_CLIENT.send(
-                        request,
-                        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
-                );
-
-                // 3. 验证响应
-                if (!validateResponse(response)) {
-                    retryCount++;
-                    log.warn("第{}次请求响应无效，{}ms后重试", retryCount, RETRY_DELAY_MS);
-                    TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
-                    continue;
-                }
-
-                // 4. 处理编码
-                String rawHtml = response.body();
-                String utf8Html = new String(rawHtml.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
-
-                // 打印响应体预览（调试）
-                log.warn("=== 香港01响应体预览（前1000字符）===");
-                String preview = utf8Html.length() > 1000 ? utf8Html.substring(0, 1000) : utf8Html;
-                log.warn(preview);
-
-                // 5. 解析HTML（修复选择器：适配香港01最新结构）
-                Document doc = Jsoup.parse(utf8Html, HK01_TARGET_URL, Parser.htmlParser());
-
-                // ========== 核心修复：更新香港01新闻选择器 ==========
-                // 兼容多种可能的新闻容器选择器
-                Elements newsContainers = doc.select(
-                        "article, .article-item, .news-card, " + // 通用新闻容器
-                        "div[class*='content'], div[class*='news'], " + // 模糊匹配
-                        "a[href*='/news/'], a[href*='/article/']" // 新闻链接
-                );
-
-                log.info("共匹配到 {} 个新闻容器，本次最多提取 {} 条", newsContainers.size(), MAX_NEWS_COUNT);
-
-                // 6. 解析新闻
-                int count = 0;
-                for (Element container : newsContainers) {
-                    if (count >= MAX_NEWS_COUNT) break;
-
-                    NewsItem news = parseHk01News(container);
-                    if (news.getTitle() != null && !news.getTitle().isEmpty()
-                            && news.getLink() != null && !news.getLink().isEmpty()) {
-                        newsList.add(news);
-                        count++;
-                        log.debug("解析到新闻：{}", news);
-                    }
-                }
-
-                log.info("=== 香港01新闻提取完成 | 有效新闻数：{} ===", newsList.size());
-                // 内存监控
-                usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
-                log.info("【内存监控】香港01新闻列表提取完成 | 已使用：{}MB | 最大可用：{}MB", usedMemory, maxMemory);
-                return newsList;
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("香港01爬虫线程被中断", e);
-                return new ArrayList<>();
-            } catch (Exception e) {
-                retryCount++;
-                log.error("第{}次提取香港01新闻失败：{}", retryCount, e.getMessage(), e);
-                if (retryCount >= MAX_RETRIES) {
-                    log.error("所有重试次数用尽，返回空列表");
-                    return new ArrayList<>();
-                }
-                try {
-                    TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return new ArrayList<>();
-                }
-            }
-        }
+        usedMemory =
+          (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
+        log.info(
+          "【内存监控】香港01新闻列表提取完成 | 已使用：{}MB | 最大可用：{}MB",
+          usedMemory,
+          maxMemory
+        );
+        return newsList;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        log.error("香港01爬虫线程被中断", e);
         return new ArrayList<>();
-    }
-
-    // ===================== 辅助方法：构建香港01请求 =====================
-    private HttpRequest buildHk01Request() {
-        return HttpRequest.newBuilder()
-                .uri(URI.create(HK01_TARGET_URL))
-                // 强反爬请求头（模拟真实浏览器）
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-                .header("Accept-Language", "zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7")
-                .header("Accept-Encoding", "gzip, deflate, br")
-                .header("Referer", "https://www.google.com/") // 模拟谷歌跳转
-                .header("Cache-Control", "max-age=0")
-                .header("Upgrade-Insecure-Requests", "1")
-                .header("Sec-Fetch-Dest", "document")
-                .header("Sec-Fetch-Mode", "navigate")
-                .header("Sec-Fetch-Site", "cross-site")
-                .header("Sec-Fetch-User", "?1")
-                .header("Connection", "keep-alive")
-                // 关键：模拟Cookie
-                .header("Cookie", "HK01_LANG=zh-HK; _ga=GA1.1.123456789.1733568000; _gid=GA1.1.987654321.1733568000; accept_cookie=1; _fbp=fb.1.1733568000123.456789;")
-                .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-                .GET()
-                .build();
-    }
-
-    // ===================== 辅助方法：验证响应 =====================
-    private boolean validateResponse(HttpResponse<String> response) {
-        int statusCode = response.statusCode();
-        if (statusCode != 200) {
-            log.error("香港01响应状态码异常：{}", statusCode);
-            return false;
+      } catch (Exception e) {
+        retryCount++;
+        log.error(
+          "第{}次提取香港01新闻失败：{}",
+          retryCount,
+          e.getMessage(),
+          e
+        );
+        if (retryCount >= MAX_RETRIES) {
+          log.error("所有重试次数用尽，返回空列表");
+          return new ArrayList<>();
         }
-
-        String body = response.body();
-        if (body == null || body.isEmpty()) {
-            log.error("香港01响应体为空");
-            return false;
-        }
-
-        // 仅校验是否为HTML页面
-        if (!body.contains("<html") || !body.contains("<body")) {
-            log.error("香港01响应体非HTML页面");
-            return false;
-        }
-
-        return true;
-    }
-
-    // ===================== 辅助方法：解析单条香港01新闻 =====================
-    private NewsItem parseHk01News(Element container) {
-        NewsItem news = new NewsItem();
-
         try {
-            // 提取标题（优先取h1/h2/h3/h4，或a标签文本）
-            Element titleEl = container.selectFirst("h1, h2, h3, h4, a");
-            if (titleEl != null) {
-                news.setTitle(titleEl.text().trim());
-            }
-
-            // 提取链接（补全绝对路径）
-            Element linkEl = container.selectFirst("a");
-            if (linkEl != null) {
-                String link = linkEl.attr("href").trim();
-                if (link.startsWith("/")) {
-                    news.setLink("https://www.hk01.com" + link);
-                } else if (link.startsWith("http")) {
-                    news.setLink(link);
-                }
-            }
-
-            // 提取发布时间（兼容多种时间类名）
-            Element timeEl = container.selectFirst("time, .time, .date, [class*='time'], [class*='date']");
-            if (timeEl != null) {
-                news.setPublishTime(timeEl.text().trim());
-            }
-
-            // 提取分类
-            Element categoryEl = container.selectFirst(".category, .tag, [class*='category']");
-            if (categoryEl != null) {
-                news.setCategory(categoryEl.text().trim());
-            }
-
-        } catch (Exception e) {
-            log.error("解析香港01单条新闻失败", e);
+          TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          return new ArrayList<>();
         }
+      }
+    }
+    return new ArrayList<>();
+  }
 
-        return news;
+  // ===================== 辅助方法：构建香港01请求 =====================
+  // 修正 buildHk01Request 方法
+  private HttpRequest buildHk01Request() {
+    return HttpRequest
+      .newBuilder()
+      .uri(URI.create(HK01_TARGET_URL))
+      // 保留核心反爬头，移除 Connection/Accept-Encoding 等受限头
+      .header(
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+      )
+      .header(
+        "Accept",
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+      )
+      .header("Accept-Language", "zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+      .header("Referer", "https://www.google.com/")
+      .header("Cache-Control", "max-age=0")
+      .header("Upgrade-Insecure-Requests", "1")
+      // 关键：模拟Cookie
+      .header(
+        "Cookie",
+        "HK01_LANG=zh-HK; _ga=GA1.1.123456789.1733568000; _gid=GA1.1.987654321.1733568000; accept_cookie=1; _fbp=fb.1.1733568000123.456789;"
+      )
+      .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+      .GET()
+      .build();
+  }
+
+  // ===================== 辅助方法：验证响应 =====================
+  private boolean validateResponse(HttpResponse<String> response) {
+    int statusCode = response.statusCode();
+    if (statusCode != 200) {
+      log.error("香港01响应状态码异常：{}", statusCode);
+      return false;
     }
 
-    // ===================== 保留方法：提取链接/标题 =====================
-    public List<String> extractAllLinks() {
-        List<NewsItem> newsList = extractCompleteNewsList();
-        List<String> linkList = new ArrayList<>();
-        for (NewsItem news : newsList) {
-            if (news.getLink() != null && !news.getLink().isEmpty()) {
-                linkList.add(news.getLink());
-            }
+    String body = response.body();
+    if (body == null || body.isEmpty()) {
+      log.error("香港01响应体为空");
+      return false;
+    }
+
+    // 仅校验是否为HTML页面
+    if (!body.contains("<html") || !body.contains("<body")) {
+      log.error("香港01响应体非HTML页面");
+      return false;
+    }
+
+    return true;
+  }
+
+  // ===================== 辅助方法：解析单条香港01新闻 =====================
+  private NewsItem parseHk01News(Element container) {
+    NewsItem news = new NewsItem();
+
+    try {
+      // 提取标题（优先取h1/h2/h3/h4，或a标签文本）
+      Element titleEl = container.selectFirst("h1, h2, h3, h4, a");
+      if (titleEl != null) {
+        news.setTitle(titleEl.text().trim());
+      }
+
+      // 提取链接（补全绝对路径）
+      Element linkEl = container.selectFirst("a");
+      if (linkEl != null) {
+        String link = linkEl.attr("href").trim();
+        if (link.startsWith("/")) {
+          news.setLink("https://www.hk01.com" + link);
+        } else if (link.startsWith("http")) {
+          news.setLink(link);
         }
-        log.info("提取香港01链接数：{}", linkList.size());
-        return linkList;
+      }
+
+      // 提取发布时间（兼容多种时间类名）
+      Element timeEl = container.selectFirst(
+        "time, .time, .date, [class*='time'], [class*='date']"
+      );
+      if (timeEl != null) {
+        news.setPublishTime(timeEl.text().trim());
+      }
+
+      // 提取分类
+      Element categoryEl = container.selectFirst(
+        ".category, .tag, [class*='category']"
+      );
+      if (categoryEl != null) {
+        news.setCategory(categoryEl.text().trim());
+      }
+    } catch (Exception e) {
+      log.error("解析香港01单条新闻失败", e);
     }
 
-    public List<String> extractChineseTitles() {
-        List<NewsItem> newsList = extractCompleteNewsList();
-        List<String> titleList = new ArrayList<>();
-        for (NewsItem news : newsList) {
-            if (news.getTitle() != null && !news.getTitle().isEmpty() && containsChinese(news.getTitle())) {
-                titleList.add(news.getTitle());
-            }
-        }
-        log.info("提取香港01中文标题数：{}", titleList.size());
-        return titleList;
-    }
+    return news;
+  }
 
-    private boolean containsChinese(String text) {
-        return text.matches(".*[\\u4E00-\\u9FA5]+.*");
+  // ===================== 保留方法：提取链接/标题 =====================
+  public List<String> extractAllLinks() {
+    List<NewsItem> newsList = extractCompleteNewsList();
+    List<String> linkList = new ArrayList<>();
+    for (NewsItem news : newsList) {
+      if (news.getLink() != null && !news.getLink().isEmpty()) {
+        linkList.add(news.getLink());
+      }
     }
+    log.info("提取香港01链接数：{}", linkList.size());
+    return linkList;
+  }
+
+  public List<String> extractChineseTitles() {
+    List<NewsItem> newsList = extractCompleteNewsList();
+    List<String> titleList = new ArrayList<>();
+    for (NewsItem news : newsList) {
+      if (
+        news.getTitle() != null &&
+        !news.getTitle().isEmpty() &&
+        containsChinese(news.getTitle())
+      ) {
+        titleList.add(news.getTitle());
+      }
+    }
+    log.info("提取香港01中文标题数：{}", titleList.size());
+    return titleList;
+  }
+
+  private boolean containsChinese(String text) {
+    return text.matches(".*[\\u4E00-\\u9FA5]+.*");
+  }
 }

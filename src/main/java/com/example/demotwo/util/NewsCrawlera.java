@@ -643,38 +643,26 @@ public class NewsCrawlera {
     return true;
   }
 
-  // ========== 关键修改2：增强反爬请求头 ==========
-  private HttpRequest buildRthkRequest() {
-    return HttpRequest
-      .newBuilder()
-      .uri(URI.create(RTHK_TARGET_URL))
-      // 补充更多浏览器请求头
-      .header(
-        "User-Agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-      )
-      .header(
-        "Accept",
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
-      )
-      .header("Accept-Language", "zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7")
-      .header("Accept-Encoding", "gzip, deflate, br")
-      .header("Referer", "https://www.rthk.hk/") // 升级为官网首页
-      .header("Cache-Control", "max-age=0")
-      .header("Upgrade-Insecure-Requests", "1")
-      .header("Sec-Fetch-Dest", "document")
-      .header("Sec-Fetch-Mode", "navigate")
-      .header("Sec-Fetch-Site", "same-origin")
-      .header("Sec-Fetch-User", "?1")
-      .header("Connection", "keep-alive")
-      // 模拟Cookie（关键：绕过基础反爬）
-      .header(
-        "Cookie",
-        "rthk_lang=zh-HK; _ga=GA1.1.1234567890.1733568000; _gid=GA1.1.0987654321.1733568000"
-      )
-      .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-      .GET()
-      .build();
+// 修正 buildRthkRequest 方法（移除 Connection 等受限头）
+private HttpRequest buildRthkRequest() {
+    return HttpRequest.newBuilder()
+            .uri(URI.create(RTHK_TARGET_URL))
+            // 保留核心反爬头，移除 Connection/Accept-Encoding 等受限/自动管理的头
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+            .header("Accept-Language", "zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+            .header("Referer", "https://www.rthk.hk/")
+            .header("Cache-Control", "max-age=0")
+            .header("Upgrade-Insecure-Requests", "1")
+            .header("Sec-Fetch-Dest", "document")
+            .header("Sec-Fetch-Mode", "navigate")
+            .header("Sec-Fetch-Site", "same-origin")
+            .header("Sec-Fetch-User", "?1")
+            // 模拟Cookie（关键：绕过基础反爬）
+            .header("Cookie", "rthk_lang=zh-HK; _ga=GA1.1.1234567890.1733568000; _gid=GA1.1.0987654321.1733568000")
+            .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+            .GET()
+            .build();
   }
 
   // ========== 关键修改3：解析时兼容更多结构 ==========
