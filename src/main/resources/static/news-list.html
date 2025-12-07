@@ -19,6 +19,8 @@
             --bg-main: #F7F8FA;
             --bg-card: #FFFFFF;
             --border-color: #E5E6EB;
+            --empty-bg: #F9FBFF; /* 空狀態背景色 */
+            --empty-text: #6E7681; /* 空狀態文字色 */
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
             --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
             --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.15);
@@ -224,15 +226,15 @@
         /* 載入動畫 */
         .loading {
             text-align: center;
-            padding: 60px 0;
+            padding: 80px 20px;
             color: var(--text-gray);
         }
 
         .loading-icon {
-            font-size: 32px;
+            font-size: 48px;
             color: var(--primary-color);
             animation: spin 1.5s linear infinite;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         @keyframes spin {
@@ -367,20 +369,57 @@
             font-weight: 700;
         }
 
-        /* 空狀態 */
+        /* 空狀態（重構核心） */
         .empty-tip {
             text-align: center;
-            padding: 80px 0;
-            color: var(--text-light);
-            background: var(--bg-card);
-            border-radius: 12px;
+            padding: 60px 30px;
+            background: var(--empty-bg);
+            border-radius: 16px;
             box-shadow: var(--shadow-sm);
+            max-width: 600px;
+            margin: 0 auto;
         }
 
         .empty-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-            color: var(--border-color);
+            font-size: 72px;
+            color: var(--primary-light);
+            margin-bottom: 24px;
+            opacity: 0.8;
+        }
+
+        .empty-title {
+            font-size: 20px;
+            color: var(--text-dark);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .empty-desc {
+            font-size: 14px;
+            color: var(--empty-text);
+            margin-bottom: 32px;
+            line-height: 1.8;
+        }
+
+        .empty-refresh-btn {
+            padding: 12px 24px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition-base);
+        }
+
+        .empty-refresh-btn:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
         }
 
         /* 響應式适配 */
@@ -419,6 +458,18 @@
             .news-image {
                 height: 150px;
             }
+
+            .empty-tip {
+                padding: 40px 20px;
+            }
+
+            .empty-icon {
+                font-size: 56px;
+            }
+
+            .empty-title {
+                font-size: 18px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -438,6 +489,14 @@
 
             .news-image {
                 height: 120px;
+            }
+
+            .empty-tip {
+                padding: 30px 15px;
+            }
+
+            .empty-icon {
+                font-size: 48px;
             }
         }
     </style>
@@ -507,13 +566,16 @@
         <!-- 新聞網格 -->
         <div class="news-grid" id="newsList" style="display: none;"></div>
 
-        <!-- 空狀態 -->
+        <!-- 空狀態（重構） -->
         <div class="empty-tip" id="emptyTip" style="display: none;">
             <div class="empty-icon">
                 <i class="fa fa-newspaper-o"></i>
             </div>
-            <h3 id="emptyTitle">暫無新聞數據</h3>
-            <p id="emptyDesc" style="margin-top: 8px;">請稍後重試或點擊刷新按鈕</p>
+            <h3 class="empty-title" id="emptyTitle">冇曬新聞</h3>
+            <p class="empty-desc" id="emptyDesc">暫時未找到任何新聞內容<br>可試下刷新頁面或調整搜尋條件</p>
+            <button class="empty-refresh-btn" onclick="loadNewsList()">
+                <i class="fa fa-refresh"></i> 立即刷新
+            </button>
         </div>
     </div>
 
@@ -642,7 +704,7 @@
                     document.getElementById('loadingTip').style.display = 'none';
                     document.getElementById('emptyTip').style.display = 'block';
                     document.getElementById('emptyTitle').textContent = '載入失敗';
-                    document.getElementById('emptyDesc').textContent = '無法連接到伺服器，請稍後重試';
+                    document.getElementById('emptyDesc').textContent = '無法連接到伺服器，請稍後重試或點擊下方按鈕刷新';
                     updateSearchStatus("載入失敗：無法連接到伺服器");
                 })
                 .finally(() => {
@@ -758,28 +820,26 @@
             document.getElementById('loadingTip').style.display = 'none';
             
             if (filteredList.length === 0) {
-                // 空狀態
+                // 空狀態 - 根據場景調整文案
                 document.getElementById('emptyTip').style.display = 'block';
                 document.getElementById('newsList').style.display = 'none';
                 
-                let emptyTitle = '無匹配結果';
-                let emptyDesc = '';
-                let statusText = '無結果：';
+                let emptyTitle = '冇曬新聞';
+                let emptyDesc = '暫時未找到任何新聞內容<br>可試下刷新頁面或調整搜尋條件';
                 
-                // 建構空狀態提示
-                if (currentFilter !== 'all') {
-                    statusText += `${currentFilter === 'featured' ? '僅精選' : '僅社會新聞'} `;
+                // 搜尋/篩選導致空結果的文案調整
+                if (hasKeyword || currentFilter !== 'all') {
+                    emptyTitle = '無匹配結果';
+                    let filterText = '';
+                    if (currentFilter === 'featured') filterText = '僅精選';
+                    if (currentFilter === 'social') filterText = '僅社會新聞';
+                    
+                    emptyDesc = `未找到「${currentSearchKeyword || '全部'}」相關的${filterText ? filterText + ' ' : ''}新聞<br>可試下放寬搜尋條件或刷新頁面`;
                 }
-                if (hasKeyword) {
-                    statusText += `+ 搜尋"${currentSearchKeyword}"`;
-                }
                 
-                emptyDesc = statusText.replace('無結果：', '未找到符合以下條件的新聞：')
-                    .replace('+', '、');
-                
-                updateSearchStatus(statusText);
                 document.getElementById('emptyTitle').textContent = emptyTitle;
-                document.getElementById('emptyDesc').textContent = emptyDesc;
+                document.getElementById('emptyDesc').innerHTML = emptyDesc;
+                updateSearchStatus(emptyTitle);
             } else {
                 // 渲染新聞卡片（保持最新在前的排序）
                 document.getElementById('emptyTip').style.display = 'none';
