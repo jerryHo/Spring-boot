@@ -366,17 +366,6 @@
 
 package com.example.demotwo.util;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Node;
-import org.jsoup.nodes.TextNode;
-import org.jsoup.parser.Parser;
-import org.jsoup.select.Elements;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -387,10 +376,20 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.concurrent.TimeUnit;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
+import org.jsoup.nodes.TextNode;
+import org.jsoup.parser.Parser;
+import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 /**
  * RTHK新闻爬虫（精准匹配指定HTML结构：.ns2-page -> .ns2-page-inner -> .ns2-row）
@@ -406,354 +405,421 @@ import java.util.concurrent.TimeUnit;
  */
 @Component // Spring Bean注解，支持@Autowired注入
 public class NewsCrawlera {
-    // ===================== 核心配置 =====================
-    private static final Logger log = LoggerFactory.getLogger(NewsCrawlera.class);
-    // RTHK最新新闻页面URL
-    private static final String RTHK_TARGET_URL = "https://news.rthk.hk/rthk/ch/latest-news.htm";
-    // HTTP请求超时时间
-    private static final int HTTP_TIMEOUT_SECONDS = 20;
-    // 最大重试次数
-    private static final int MAX_RETRIES = 3;
-    // 重试间隔（毫秒）
-    private static final long RETRY_DELAY_MS = 2000;
-    // 匹配HTTP/HTTPS链接的正则
-    private static final Pattern HTTP_HTTPS_PATTERN = Pattern.compile("https?:\\/\\/[^\\s\"']+", Pattern.UNICODE_CASE);
 
-    // 全局HttpClient（复用连接，提升性能）
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-            .followRedirects(HttpClient.Redirect.NORMAL) // 自动跟随重定向
-            .build();
+  // ===================== 核心配置 =====================
+  private static final Logger log = LoggerFactory.getLogger(NewsCrawlera.class);
+  // RTHK最新新闻页面URL
+  private static final String RTHK_TARGET_URL =
+    "https://news.rthk.hk/rthk/ch/latest-news.htm";
+  // HTTP请求超时时间
+  private static final int HTTP_TIMEOUT_SECONDS = 20;
+  // 最大重试次数
+  private static final int MAX_RETRIES = 3;
+  // 重试间隔（毫秒）
+  private static final long RETRY_DELAY_MS = 2000;
+  // 匹配HTTP/HTTPS链接的正则
+  private static final Pattern HTTP_HTTPS_PATTERN = Pattern.compile(
+    "https?:\\/\\/[^\\s\"']+",
+    Pattern.UNICODE_CASE
+  );
 
-    /**
-     * 新闻实体类（精准匹配目标HTML的字段）
-     */
-    public static class NewsItem {
-        private String title;        // 新闻标题（如：印度果阿邦夜總會火警25死　莫迪稱將金錢賠償死者家屬和傷者）
-        private String link;         // 新闻链接（如：https://news.rthk.hk/...）
-        private String publishTime;  // 发布时间（如：2025-12-07 HKT 16:20）
-        private boolean hasVideo;    // 是否包含视频（示例中无，代码兼容）
-        private boolean hasAudio;    // 是否包含音频（示例中无，代码兼容）
+  // 全局HttpClient（复用连接，提升性能）
+  private static final HttpClient HTTP_CLIENT = HttpClient
+    .newBuilder()
+    .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+    .followRedirects(HttpClient.Redirect.NORMAL) // 自动跟随重定向
+    .build();
 
-        // Getter & Setter
-        public String getTitle() { return title; }
-        public void setTitle(String title) { this.title = title; }
-        public String getLink() { return link; }
-        public void setLink(String link) { this.link = link; }
-        public String getPublishTime() { return publishTime; }
-        public void setPublishTime(String publishTime) { this.publishTime = publishTime; }
-        public boolean isHasVideo() { return hasVideo; }
-        public void setHasVideo(boolean hasVideo) { this.hasVideo = hasVideo; }
-        public boolean isHasAudio() { return hasAudio; }
-        public void setHasAudio(boolean hasAudio) { this.hasAudio = hasAudio; }
+  /**
+   * 新闻实体类（精准匹配目标HTML的字段）
+   */
+  public static class NewsItem {
 
-        // 重写toString，方便打印查看
-        @Override
-        public String toString() {
-            return "NewsItem{" +
-                    "标题='" + title + '\'' +
-                    ", 链接='" + link + '\'' +
-                    ", 发布时间='" + publishTime + '\'' +
-                    ", 含视频=" + hasVideo +
-                    ", 含音频=" + hasAudio +
-                    '}';
-        }
+    private String title; // 新闻标题（如：印度果阿邦夜總會火警25死　莫迪稱將金錢賠償死者家屬和傷者）
+    private String link; // 新闻链接（如：https://news.rthk.hk/...）
+    private String publishTime; // 发布时间（如：2025-12-07 HKT 16:20）
+    private boolean hasVideo; // 是否包含视频（示例中无，代码兼容）
+    private boolean hasAudio; // 是否包含音频（示例中无，代码兼容）
+
+    // Getter & Setter
+    public String getTitle() {
+      return title;
     }
 
-    // ===================== 核心方法：提取完整新闻列表（精准解析目标结构） =====================
-    /**
-     * 提取RTHK页面所有新闻（精准匹配.ns2-page -> .ns2-page-inner -> .ns2-row结构）
-     * @return 解析后的新闻列表（空列表=失败）
-     */
-    public List<NewsItem> extractCompleteNewsList() {
-        List<NewsItem> newsList = new ArrayList<>();
-        int retryCount = 0;
+    public void setTitle(String title) {
+      this.title = title;
+    }
 
-        while (retryCount < MAX_RETRIES) {
-            try {
-                log.info("开始提取RTHK新闻（第{}次尝试），目标URL：{}", retryCount + 1, RTHK_TARGET_URL);
+    public String getLink() {
+      return link;
+    }
 
-                // 1. 构建反爬HTTP请求
-                HttpRequest request = buildRthkRequest();
+    public void setLink(String link) {
+      this.link = link;
+    }
 
-                // 2. 发送请求并获取响应
-                HttpResponse<String> response = HTTP_CLIENT.send(
-                        request,
-                        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8) // 强制UTF-8解码
-                );
+    public String getPublishTime() {
+      return publishTime;
+    }
 
-                // 3. 验证响应有效性
-                if (!validateResponse(response)) {
-                    retryCount++;
-                    log.warn("第{}次请求响应无效，{}ms后重试", retryCount, RETRY_DELAY_MS);
-                    TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
-                    continue;
-                }
+    public void setPublishTime(String publishTime) {
+      this.publishTime = publishTime;
+    }
 
-                // 4. 处理HTML编码（双重确保UTF-8，解决中文乱码）
-                String rawHtml = response.body();
-                byte[] utf8Bytes = rawHtml.getBytes(StandardCharsets.UTF_8);
-                String utf8Html = new String(utf8Bytes, StandardCharsets.UTF_8);
+    public boolean isHasVideo() {
+      return hasVideo;
+    }
 
-                // 5. 解析HTML（精准匹配目标结构）
-                Document doc = Jsoup.parse(utf8Html, RTHK_TARGET_URL, Parser.htmlParser());
+    public void setHasVideo(boolean hasVideo) {
+      this.hasVideo = hasVideo;
+    }
 
-                // ========== 核心：精准定位单条新闻容器 ==========
-                // 匹配层级：.ns2-page -> .ns2-page-inner -> .ns2-row（包含ns2-first/ns2-odd等子类）
-                Elements newsRowList = doc.select(".ns2-page .ns2-page-inner .ns2-row");
-                log.info("匹配到新闻容器数量：{}条", newsRowList.size());
+    public boolean isHasAudio() {
+      return hasAudio;
+    }
 
-                // 6. 遍历解析每条新闻
-                for (Element newsRow : newsRowList) {
-                    NewsItem news = parseSingleNews(newsRow);
-                    // 过滤无效新闻（标题/链接非空）
-                    if (news.getTitle() != null && !news.getTitle().isEmpty()
-                            && news.getLink() != null && !news.getLink().isEmpty()) {
-                        newsList.add(news);
-                        log.debug("解析到有效新闻：{}", news);
-                    } else {
-                        log.warn("跳过无效新闻（标题/链接为空）：{}", news);
-                    }
-                }
+    public void setHasAudio(boolean hasAudio) {
+      this.hasAudio = hasAudio;
+    }
 
-                // 7. 打印最终结果（日志）
-                log.info("RTHK新闻解析完成 | 有效新闻数：{}", newsList.size());
-                for (int i = 0; i < newsList.size(); i++) {
-                    log.info("新闻 {}: {}", i + 1, newsList.get(i));
-                }
+    // 重写toString，方便打印查看
+    @Override
+    public String toString() {
+      return (
+        "NewsItem{" +
+        "标题='" +
+        title +
+        '\'' +
+        ", 链接='" +
+        link +
+        '\'' +
+        ", 发布时间='" +
+        publishTime +
+        '\'' +
+        ", 含视频=" +
+        hasVideo +
+        ", 含音频=" +
+        hasAudio +
+        '}'
+      );
+    }
+  }
 
-                return newsList;
+  // ===================== 核心方法：提取完整新闻列表（精准解析目标结构） =====================
+  /**
+   * 提取RTHK页面所有新闻（精准匹配.ns2-page -> .ns2-page-inner -> .ns2-row结构）
+   * @return 解析后的新闻列表（空列表=失败）
+   */
+  public List<NewsItem> extractCompleteNewsList() {
+    List<NewsItem> newsList = new ArrayList<>();
+    int retryCount = 0;
 
-            } catch (InterruptedException e) {
-                // 线程中断处理（规范）
-                Thread.currentThread().interrupt();
-                log.error("爬虫线程被中断", e);
-                return new ArrayList<>();
-            } catch (Exception e) {
-                // 通用异常处理
-                retryCount++;
-                log.error("第{}次解析失败：{}", retryCount, e.getMessage(), e);
-                if (retryCount >= MAX_RETRIES) {
-                    log.error("所有重试次数用尽，返回空列表");
-                    return new ArrayList<>();
-                }
-                // 重试前等待
-                try {
-                    TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    return new ArrayList<>();
-                }
-            }
+    while (retryCount < MAX_RETRIES) {
+      try {
+        log.info(
+          "开始提取RTHK新闻（第{}次尝试），目标URL：{}",
+          retryCount + 1,
+          RTHK_TARGET_URL
+        );
+
+        // 1. 构建反爬HTTP请求
+        HttpRequest request = buildRthkRequest();
+
+        // 2. 发送请求并获取响应
+        HttpResponse<String> response = HTTP_CLIENT.send(
+          request,
+          HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8) // 强制UTF-8解码
+        );
+
+        // 3. 验证响应有效性
+        if (!validateResponse(response)) {
+          retryCount++;
+          log.warn(
+            "第{}次请求响应无效，{}ms后重试",
+            retryCount,
+            RETRY_DELAY_MS
+          );
+          TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
+          continue;
         }
 
+        // 4. 处理HTML编码（双重确保UTF-8，解决中文乱码）
+        String rawHtml = response.body();
+        byte[] utf8Bytes = rawHtml.getBytes(StandardCharsets.UTF_8);
+        String utf8Html = new String(utf8Bytes, StandardCharsets.UTF_8);
+
+        // 5. 解析HTML（精准匹配目标结构）
+        Document doc = Jsoup.parse(
+          utf8Html,
+          RTHK_TARGET_URL,
+          Parser.htmlParser()
+        );
+
+        // ========== 核心：精准定位单条新闻容器 ==========
+        // 匹配层级：.ns2-page -> .ns2-page-inner -> .ns2-row（包含ns2-first/ns2-odd等子类）
+        Elements newsRowList = doc.select(".ns2-page .ns2-page-inner .ns2-row");
+        log.info("匹配到新闻容器数量：{}条", newsRowList.size());
+
+        // 6. 遍历解析每条新闻
+        for (Element newsRow : newsRowList) {
+          NewsItem news = parseSingleNews(newsRow);
+          // 过滤无效新闻（标题/链接非空）
+          if (
+            news.getTitle() != null &&
+            !news.getTitle().isEmpty() &&
+            news.getLink() != null &&
+            !news.getLink().isEmpty()
+          ) {
+            newsList.add(news);
+            log.debug("解析到有效新闻：{}", news);
+          } else {
+            log.warn("跳过无效新闻（标题/链接为空）：{}", news);
+          }
+        }
+
+        // 7. 打印最终结果（日志）
+        log.info("RTHK新闻解析完成 | 有效新闻数：{}", newsList.size());
+        for (int i = 0; i < newsList.size(); i++) {
+          log.info("新闻 {}: {}", i + 1, newsList.get(i));
+        }
+
+        return newsList;
+      } catch (InterruptedException e) {
+        // 线程中断处理（规范）
+        Thread.currentThread().interrupt();
+        log.error("爬虫线程被中断", e);
         return new ArrayList<>();
-    }
-
-    // ===================== 核心方法：解析单条新闻（精准匹配目标HTML结构） =====================
-    /**
-     * 解析单条新闻容器（.ns2-row），提取标题、链接、时间、多媒体标识
-     * @param newsRow 单条新闻的根元素（.ns2-row）
-     * @return 解析后的NewsItem（字段为空则返回null）
-     */
-    private NewsItem parseSingleNews(Element newsRow) {
-        NewsItem news = new NewsItem();
-
+      } catch (Exception e) {
+        // 通用异常处理
+        retryCount++;
+        log.error("第{}次解析失败：{}", retryCount, e.getMessage(), e);
+        if (retryCount >= MAX_RETRIES) {
+          log.error("所有重试次数用尽，返回空列表");
+          return new ArrayList<>();
+        }
+        // 重试前等待
         try {
-            // ========== 1. 提取标题：h4.ns2-title a font[my=my] ==========
-            Element titleFont = newsRow.selectFirst("h4.ns2-title a font[my=my]");
-            if (titleFont != null) {
-                String title = titleFont.text().trim();
-                news.setTitle(title);
-                log.debug("提取标题：{}", title);
-            } else {
-                log.warn("未匹配到标题元素：{}", newsRow);
-                news.setTitle("");
-            }
-
-            // ========== 2. 提取链接：h4.ns2-title a 的href（补全绝对链接） ==========
-            Element newsLink = newsRow.selectFirst("h4.ns2-title a");
-            if (newsLink != null) {
-                String relativeLink = newsLink.attr("href").trim();
-                // 补全绝对链接（避免相对路径）
-                String fullLink = relativeLink.startsWith("http") 
-                        ? relativeLink 
-                        : "https://news.rthk.hk" + relativeLink;
-                news.setLink(fullLink);
-                log.debug("提取链接：{}（原始：{}）", fullLink, relativeLink);
-            } else {
-                log.warn("未匹配到链接元素：{}", newsRow);
-                news.setLink("");
-            }
-
-            // ========== 3. 提取发布时间：.ns2-created font[my=my] ==========
-            Element timeFont = newsRow.selectFirst(".ns2-created font[my=my]");
-            if (timeFont != null) {
-                String publishTime = timeFont.text().trim();
-                news.setPublishTime(publishTime);
-                log.debug("提取发布时间：{}", publishTime);
-            } else {
-                log.warn("未匹配到时间元素：{}", newsRow);
-                news.setPublishTime("");
-            }
-
-            // ========== 4. 提取多媒体标识（视频/音频） ==========
-            Elements multimediaIcons = newsRow.select(".multimediaIndicators img");
-            for (Element icon : multimediaIcons) {
-                String altText = icon.attr("alt").toLowerCase().trim();
-                if (altText.contains("video")) {
-                    news.setHasVideo(true);
-                    log.debug("检测到视频标识：{}", altText);
-                } else if (altText.contains("audio")) {
-                    news.setHasAudio(true);
-                    log.debug("检测到音频标识：{}", altText);
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("解析单条新闻失败", e);
+          TimeUnit.MILLISECONDS.sleep(RETRY_DELAY_MS);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          return new ArrayList<>();
         }
-
-        return news;
+      }
     }
 
-    // ===================== 辅助方法：构建RTHK反爬请求 =====================
-    private HttpRequest buildRthkRequest() {
-        return HttpRequest.newBuilder()
-                .uri(URI.create(RTHK_TARGET_URL))
-                // 模拟真实浏览器请求头（反爬核心）
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                .header("Accept-Language", "zh-HK,zh;q=0.9,en;q=0.8") // 香港繁体中文
-                .header("Accept-Encoding", "gzip, deflate")
-                .header("Referer", "https://news.rthk.hk/") // 模拟来源页
-                .header("Cache-Control", "no-cache") // 禁用缓存
-                .header("Pragma", "no-cache")
-                .header("DNT", "1") // 禁止跟踪
-                .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS)) // 请求超时
-                .GET() // GET方法
-                .build();
+    return new ArrayList<>();
+  }
+
+  // ===================== 辅助方法：验证HTTP响应 =====================
+  // ========== 关键修改1：放宽响应验证逻辑 ==========
+  private boolean validateResponse(HttpResponse<String> response) {
+    // 1. 验证状态码（必须为200）
+    int statusCode = response.statusCode();
+    if (statusCode != 200) {
+      log.error("HTTP状态码异常：{}（预期200）", statusCode);
+      // 打印响应头（调试）
+      log.error("响应头：{}", response.headers().toString());
+      return false;
     }
 
-    // ===================== 辅助方法：验证HTTP响应 =====================
-    private boolean validateResponse(HttpResponse<String> response) {
-        // 1. 验证状态码（必须为200）
-        int statusCode = response.statusCode();
-        if (statusCode != 200) {
-            log.error("HTTP状态码异常：{}（预期200）", statusCode);
-            return false;
-        }
-
-        // 2. 验证响应体非空
-        String body = response.body();
-        if (body == null || body.isEmpty()) {
-            log.error("HTTP响应体为空");
-            return false;
-        }
-
-        // 3. 验证是否为RTHK有效页面（关键词校验）
-        if (!body.contains("ns2-page") || !body.contains("ns2-row") || !body.contains("香港电台")) {
-            log.error("响应体非RTHK有效页面（未匹配关键标识）");
-            return false;
-        }
-
-        return true;
+    // 2. 验证响应体非空
+    String body = response.body();
+    if (body == null || body.isEmpty()) {
+      log.error("HTTP响应体为空");
+      return false;
     }
 
-    // ===================== 保留功能：提取所有链接（兼容原有调用） =====================
-    public List<String> extractAllLinks() {
-        List<NewsItem> newsList = extractCompleteNewsList();
-        Set<String> linkSet = new HashSet<>(); // 去重
+    // ========== 关键：放宽关键词校验，仅保留基础校验 + 打印响应体预览 ==========
+    log.warn("=== RTHK响应体预览（前1000字符）===");
+    String preview = body.length() > 1000 ? body.substring(0, 1000) : body;
+    log.warn(preview); // 打印预览，排查实际返回的内容
 
-        // 提取新闻链接
-        for (NewsItem news : newsList) {
-            if (news.getLink() != null && !news.getLink().isEmpty()) {
-                linkSet.add(news.getLink());
-            }
-        }
-
-        // 额外提取页面中所有HTTP/HTTPS链接（可选）
-        try {
-            HttpRequest request = buildRthkRequest();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            if (validateResponse(response)) {
-                String html = new String(response.body().getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
-                Document doc = Jsoup.parse(html);
-                Elements allElements = doc.getAllElements();
-                for (Element element : allElements) {
-                    element.attributes().forEach(attr -> {
-                        Matcher matcher = HTTP_HTTPS_PATTERN.matcher(attr.getValue());
-                        while (matcher.find()) {
-                            linkSet.add(matcher.group().trim());
-                        }
-                    });
-                }
-            }
-        } catch (Exception e) {
-            log.error("提取所有链接失败", e);
-        }
-
-        List<String> linkList = new ArrayList<>(linkSet);
-        log.info("提取到所有链接（去重后）：{}条", linkList.size());
-        return linkList;
+    // 仅校验是否为HTML页面，移除严格的RTHK关键词校验
+    if (!body.contains("<html") || !body.contains("<body")) {
+      log.error("响应体非HTML页面");
+      return false;
     }
 
-    // ===================== 保留功能：提取所有中文标题（兼容原有调用） =====================
-    public List<String> extractChineseTitles() {
-        List<NewsItem> newsList = extractCompleteNewsList();
-        List<String> titleList = newsList.stream()
-                .map(NewsItem::getTitle)
-                .filter(title -> title != null && !title.isEmpty() && containsChinese(title))
-                .distinct() // 去重
-                .collect(Collectors.toList());
+    return true;
+  }
 
-        log.info("提取到中文标题（去重后）：{}条", titleList.size());
-        return titleList;
+  // ========== 关键修改2：增强反爬请求头 ==========
+  private HttpRequest buildRthkRequest() {
+    return HttpRequest
+      .newBuilder()
+      .uri(URI.create(RTHK_TARGET_URL))
+      // 补充更多浏览器请求头
+      .header(
+        "User-Agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+      )
+      .header(
+        "Accept",
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+      )
+      .header("Accept-Language", "zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+      .header("Accept-Encoding", "gzip, deflate, br")
+      .header("Referer", "https://www.rthk.hk/") // 升级为官网首页
+      .header("Cache-Control", "max-age=0")
+      .header("Upgrade-Insecure-Requests", "1")
+      .header("Sec-Fetch-Dest", "document")
+      .header("Sec-Fetch-Mode", "navigate")
+      .header("Sec-Fetch-Site", "same-origin")
+      .header("Sec-Fetch-User", "?1")
+      .header("Connection", "keep-alive")
+      // 模拟Cookie（关键：绕过基础反爬）
+      .header(
+        "Cookie",
+        "rthk_lang=zh-HK; _ga=GA1.1.1234567890.1733568000; _gid=GA1.1.0987654321.1733568000"
+      )
+      .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
+      .GET()
+      .build();
+  }
+
+  // ========== 关键修改3：解析时兼容更多结构 ==========
+  private NewsItem parseSingleNews(Element newsRow) {
+    NewsItem news = new NewsItem();
+    try {
+      // 兼容无font[my=my]的情况，直接提取a标签文本
+      Element titleA = newsRow.selectFirst("h4.ns2-title a");
+      if (titleA != null) {
+        news.setTitle(titleA.text().trim()); // 直接取a标签文本
+        String relativeLink = titleA.attr("href").trim();
+        news.setLink(
+          relativeLink.startsWith("http")
+            ? relativeLink
+            : "https://news.rthk.hk" + relativeLink
+        );
+      }
+
+      // 兼容无font[my=my]的时间提取
+      Element timeDiv = newsRow.selectFirst(".ns2-created");
+      if (timeDiv != null) {
+        news.setPublishTime(timeDiv.text().trim());
+      }
+
+      // 多媒体标识
+      Elements multimediaIcons = newsRow.select(".multimediaIndicators img");
+      for (Element icon : multimediaIcons) {
+        String altText = icon.attr("alt").toLowerCase().trim();
+        if (altText.contains("video")) news.setHasVideo(true);
+        if (altText.contains("audio")) news.setHasAudio(true);
+      }
+    } catch (Exception e) {
+      log.error("解析单条新闻失败", e);
+    }
+    return news;
+  }
+
+  // ===================== 保留功能：提取所有链接（兼容原有调用） =====================
+  public List<String> extractAllLinks() {
+    List<NewsItem> newsList = extractCompleteNewsList();
+    Set<String> linkSet = new HashSet<>(); // 去重
+
+    // 提取新闻链接
+    for (NewsItem news : newsList) {
+      if (news.getLink() != null && !news.getLink().isEmpty()) {
+        linkSet.add(news.getLink());
+      }
     }
 
-    // ===================== 辅助方法：判断文本是否含中文 =====================
-    private boolean containsChinese(String text) {
-        if (text == null || text.isEmpty()) return false;
-        // 匹配中文汉字、标点
-        return Pattern.compile("[\\u4E00-\\u9FA5\\u3000-\\u303F\\uFF00-\\uFFEF]").matcher(text).find();
-    }
-
-    // ===================== 测试方法：直接运行验证 =====================
-    public static void main(String[] args) {
-        // 1. 初始化爬虫
-        NewsCrawlera crawler = new NewsCrawlera();
-
-        // 2. 测试解析完整新闻列表
-        log.info("===== 开始测试RTHK新闻爬虫 =====");
-        List<NewsItem> newsList = crawler.extractCompleteNewsList();
-
-        // 3. 打印测试结果
-        if (!newsList.isEmpty()) {
-            System.out.println("\n===== 解析结果（前5条） =====");
-            for (int i = 0; i < Math.min(newsList.size(), 5); i++) {
-                NewsItem item = newsList.get(i);
-                System.out.println("[" + (i + 1) + "]");
-                System.out.println("标题：" + item.getTitle());
-                System.out.println("链接：" + item.getLink());
-                System.out.println("时间：" + item.getPublishTime());
-                System.out.println("含视频：" + item.isHasVideo());
-                System.out.println("含音频：" + item.isHasAudio());
-                System.out.println("------------------------");
-            }
-        } else {
-            System.out.println("解析失败，未获取到有效新闻");
+    // 额外提取页面中所有HTTP/HTTPS链接（可选）
+    try {
+      HttpRequest request = buildRthkRequest();
+      HttpResponse<String> response = HTTP_CLIENT.send(
+        request,
+        HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+      );
+      if (validateResponse(response)) {
+        String html = new String(
+          response.body().getBytes(StandardCharsets.UTF_8),
+          StandardCharsets.UTF_8
+        );
+        Document doc = Jsoup.parse(html);
+        Elements allElements = doc.getAllElements();
+        for (Element element : allElements) {
+          element
+            .attributes()
+            .forEach(attr -> {
+              Matcher matcher = HTTP_HTTPS_PATTERN.matcher(attr.getValue());
+              while (matcher.find()) {
+                linkSet.add(matcher.group().trim());
+              }
+            });
         }
-
-        // 4. 测试提取中文标题
-        List<String> titles = crawler.extractChineseTitles();
-        System.out.println("\n===== 提取的中文标题 =====");
-        titles.forEach(title -> System.out.println("- " + title));
-
-        // 5. 测试提取所有链接
-        List<String> links = crawler.extractAllLinks();
-        System.out.println("\n===== 提取的所有链接（前5条） =====");
-        for (int i = 0; i < Math.min(links.size(), 5); i++) {
-            System.out.println("- " + links.get(i));
-        }
+      }
+    } catch (Exception e) {
+      log.error("提取所有链接失败", e);
     }
+
+    List<String> linkList = new ArrayList<>(linkSet);
+    log.info("提取到所有链接（去重后）：{}条", linkList.size());
+    return linkList;
+  }
+
+  // ===================== 保留功能：提取所有中文标题（兼容原有调用） =====================
+  public List<String> extractChineseTitles() {
+    List<NewsItem> newsList = extractCompleteNewsList();
+    List<String> titleList = newsList
+      .stream()
+      .map(NewsItem::getTitle)
+      .filter(title ->
+        title != null && !title.isEmpty() && containsChinese(title)
+      )
+      .distinct() // 去重
+      .collect(Collectors.toList());
+
+    log.info("提取到中文标题（去重后）：{}条", titleList.size());
+    return titleList;
+  }
+
+  // ===================== 辅助方法：判断文本是否含中文 =====================
+  private boolean containsChinese(String text) {
+    if (text == null || text.isEmpty()) return false;
+    // 匹配中文汉字、标点
+    return Pattern
+      .compile("[\\u4E00-\\u9FA5\\u3000-\\u303F\\uFF00-\\uFFEF]")
+      .matcher(text)
+      .find();
+  }
+
+  // ===================== 测试方法：直接运行验证 =====================
+  public static void main(String[] args) {
+    // 1. 初始化爬虫
+    NewsCrawlera crawler = new NewsCrawlera();
+
+    // 2. 测试解析完整新闻列表
+    log.info("===== 开始测试RTHK新闻爬虫 =====");
+    List<NewsItem> newsList = crawler.extractCompleteNewsList();
+
+    // 3. 打印测试结果
+    if (!newsList.isEmpty()) {
+      System.out.println("\n===== 解析结果（前5条） =====");
+      for (int i = 0; i < Math.min(newsList.size(), 5); i++) {
+        NewsItem item = newsList.get(i);
+        System.out.println("[" + (i + 1) + "]");
+        System.out.println("标题：" + item.getTitle());
+        System.out.println("链接：" + item.getLink());
+        System.out.println("时间：" + item.getPublishTime());
+        System.out.println("含视频：" + item.isHasVideo());
+        System.out.println("含音频：" + item.isHasAudio());
+        System.out.println("------------------------");
+      }
+    } else {
+      System.out.println("解析失败，未获取到有效新闻");
+    }
+
+    // 4. 测试提取中文标题
+    List<String> titles = crawler.extractChineseTitles();
+    System.out.println("\n===== 提取的中文标题 =====");
+    titles.forEach(title -> System.out.println("- " + title));
+
+    // 5. 测试提取所有链接
+    List<String> links = crawler.extractAllLinks();
+    System.out.println("\n===== 提取的所有链接（前5条） =====");
+    for (int i = 0; i < Math.min(links.size(), 5); i++) {
+      System.out.println("- " + links.get(i));
+    }
+  }
 }
