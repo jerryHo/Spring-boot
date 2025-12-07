@@ -194,35 +194,6 @@
             color: var(--primary-color);
         }
 
-        /* 來源篩選按鈕組 */
-        .source-filter-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .source-filter-btn {
-            padding: 10px 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            background: var(--bg-card);
-            color: var(--text-gray);
-            cursor: pointer;
-            font-size: 14px;
-            transition: var(--transition-base);
-        }
-
-        .source-filter-btn.active {
-            background: var(--primary-color);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        .source-filter-btn:hover:not(.active) {
-            border-color: var(--primary-light);
-            color: var(--primary-color);
-        }
-
         /* 刷新按鈕 */
         .refresh-btn {
             display: flex;
@@ -428,7 +399,7 @@
                 align-items: stretch;
             }
 
-            .filter-group, .source-filter-group {
+            .filter-group {
                 justify-content: center;
             }
 
@@ -456,7 +427,7 @@
                 border-radius: 12px;
             }
 
-            .refresh-btn, .filter-btn, .source-filter-btn {
+            .refresh-btn, .filter-btn {
                 padding: 8px 16px;
                 font-size: 13px;
             }
@@ -497,26 +468,13 @@
                         type="text" 
                         class="search-input" 
                         id="searchInput"
-                        placeholder="搜尋新聞標題/發布時間/來源（即時搜尋）..."
+                        placeholder="搜尋新聞標題/發布時間/分類（即時搜尋）..."
                     >
                     <button class="clear-search-btn" id="clearSearchBtn" onclick="clearSearch()">
                         <i class="fa fa-times"></i>
                     </button>
                 </div>
                 <div class="search-status-tip" id="searchStatusTip">輸入關鍵字開始搜尋</div>
-            </div>
-
-            <!-- 來源篩選按鈕 -->
-            <div class="source-filter-group">
-                <button class="source-filter-btn active" id="sourceAll" onclick="setSource('all')">
-                    <i class="fa fa-newspaper-o"></i> 全部來源
-                </button>
-                <button class="source-filter-btn" id="sourceRthk" onclick="setSource('rthk')">
-                    <i class="fa fa-broadcast-tower"></i> 香港電台
-                </button>
-                <button class="source-filter-btn" id="sourceHk01" onclick="setSource('hk01')">
-                    <i class="fa fa-globe"></i> HK01
-                </button>
             </div>
 
             <!-- 類型篩選按鈕 -->
@@ -565,7 +523,6 @@
         let autoUpdateTimer = null;
         let originalNewsList = []; // 儲存原始數據（用於篩選/搜尋）
         let currentFilter = 'all'; // 預設篩選：全部
-        let currentSource = 'all'; // 預設來源：全部
         let currentSearchKeyword = ''; // 預設搜尋：空
         let searchDebounceTimer = null; // 防彈搜尋計時器
         const DEBOUNCE_DELAY = 500; // 即時搜尋防彈延遲（500ms）
@@ -646,63 +603,29 @@
             document.getElementById('emptyTip').style.display = 'none';
             updateSearchStatus("正在取得最新數據...");
 
-            // 請求RTHK新聞
-            const fetchRthkNews = fetch('/api/news/list')
+            // 通用新聞API請求（替換為你的實際API地址）
+            fetch('/api/news/all')
                 .then(response => {
-                    if (!response.ok) throw new Error('RTHK API請求失敗');
+                    if (!response.ok) throw new Error('新聞API請求失敗');
                     return response.json().catch(() => ({ data: [] }));
                 })
                 .then(data => {
-                    const rthkData = safeGetArray(data.data || data);
-                    return rthkData.map(news => ({
+                    const newsData = safeGetArray(data.data || data);
+                    // 格式化新聞數據 + 按發布時間降序排序（最新在前）
+                    originalNewsList = newsData.map(news => ({
                         ...news,
-                        source: 'rthk',
-                        sourceName: '香港電台',
                         publishTime: formatToHongKongTime(news.publishTime || news.publishTimeFormatted || ''),
                         link: news.link || news.newsUrl || '',
                         hasVideo: news.hasVideo || false,
-                        hasAudio: news.hasAudio || false
-                    }));
-                })
-                .catch(error => {
-                    console.error('載入RTHK新聞失敗:', error);
-                    return [];
-                });
-
-            // 請求HK01新聞
-            const fetchHk01News = fetch('/api/news/hk01/full')
-                .then(response => {
-                    if (!response.ok) throw new Error('HK01 API請求失敗');
-                    return response.json().catch(() => ({ data: [] }));
-                })
-                .then(data => {
-                    const hk01Data = safeGetArray(data.data || data);
-                    return hk01Data.map(news => ({
-                        ...news,
-                        source: 'hk01',
-                        sourceName: 'HK01',
-                        publishTime: formatToHongKongTime(news.publishTimeDatetime || news.publishTimeFormatted || news.publishTime || ''),
-                        link: news.newsUrl || news.link || '',
-                        hasVideo: news.hasVideo || false,
-                        hasAudio: news.hasAudio || false
-                    }));
-                })
-                .catch(error => {
-                    console.error('載入HK01新聞失敗:', error);
-                    return [];
-                });
-
-            // 平行請求 + 最新新聞優先排序（核心邏輯）
-            Promise.all([fetchRthkNews, fetchHk01News])
-                .then(([rthkWithSource, hk01WithSource]) => {
-                    // 合併數據 + 按發布時間降序排序（最新的新聞排在最前面）
-                    originalNewsList = [...rthkWithSource, ...hk01WithSource]
-                        .sort((a, b) => {
-                            // 解析時間戳進行排序（確保最新在前）
-                            const timeA = new Date(a.publishTime || 0).getTime() || 0;
-                            const timeB = new Date(b.publishTime || 0).getTime() || 0;
-                            return timeB - timeA; // 降序：timeB > timeA 則排在前面
-                        });
+                        hasAudio: news.hasAudio || false,
+                        sourceName: news.sourceName || '未知來源',
+                        category: news.category || '未分類'
+                    })).sort((a, b) => {
+                        // 核心排序：最新新聞優先（發布時間降序）
+                        const timeA = new Date(a.publishTime || 0).getTime() || 0;
+                        const timeB = new Date(b.publishTime || 0).getTime() || 0;
+                        return timeB - timeA;
+                    });
                     
                     // 更新UI元數據
                     document.getElementById('newsCount').textContent = originalNewsList.length;
@@ -711,7 +634,7 @@
                     // 更新搜尋狀態
                     updateSearchStatus(`共載入 ${originalNewsList.length} 條新聞，輸入關鍵字搜尋`);
                     
-                    // 套用篩選+搜尋+來源
+                    // 套用篩選+搜尋
                     applyFilterAndSearch();
                 })
                 .catch(error => {
@@ -744,7 +667,7 @@
                 
                 // 無關鍵字時重置
                 if (keyword.length === 0) {
-                    updateSearchStatus("輸入關鍵字開始搜尋（支援標題/發布時間/來源）");
+                    updateSearchStatus("輸入關鍵字開始搜尋（支援標題/發布時間/分類）");
                     currentSearchKeyword = '';
                     applyFilterAndSearch();
                     return;
@@ -770,7 +693,7 @@
             searchInput.value = '';
             document.getElementById('clearSearchBtn').classList.remove('visible');
             currentSearchKeyword = '';
-            updateSearchStatus("輸入關鍵字開始搜尋（支援標題/發布時間/來源）");
+            updateSearchStatus("輸入關鍵字開始搜尋（支援標題/發布時間/分類）");
             applyFilterAndSearch();
             searchInput.focus();
         }
@@ -793,19 +716,6 @@
             applyFilterAndSearch();
         }
 
-        // 設定來源篩選（all/rthk/hk01）
-        function setSource(sourceType) {
-            // 更新按鈕激活狀態
-            document.querySelectorAll('.source-filter-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`source${sourceType.charAt(0).toUpperCase() + sourceType.slice(1)}`).classList.add('active');
-            
-            // 更新當前來源條件
-            currentSource = sourceType;
-            
-            // 重新套用篩選
-            applyFilterAndSearch();
-        }
-
         // 關鍵字高亮
         function highlightKeyword(text, keyword) {
             if (!text || !keyword) return text;
@@ -817,26 +727,19 @@
             return text.replace(regex, '<span class="highlight">$1</span>');
         }
 
-        // 套用篩選+搜尋+來源（核心邏輯）
+        // 套用篩選+搜尋（核心邏輯）
         function applyFilterAndSearch() {
             let filteredList = [...originalNewsList];
             const hasKeyword = currentSearchKeyword.length > 0;
 
-            // 步驟1：套用來源篩選
-            if (currentSource === 'rthk') {
-                filteredList = filteredList.filter(news => news.source === 'rthk');
-            } else if (currentSource === 'hk01') {
-                filteredList = filteredList.filter(news => news.source === 'hk01');
-            }
-
-            // 步驟2：套用類型篩選（社會新聞匹配「social」）
+            // 步驟1：套用類型篩選
             if (currentFilter === 'featured') {
                 filteredList = filteredList.filter(news => news.featured === true);
             } else if (currentFilter === 'social') {
                 filteredList = filteredList.filter(news => news.category === '社會新聞');
             }
 
-            // 步驟3：多欄位搜尋（標題+發布時間+來源+分類）
+            // 步驟2：多欄位搜尋（標題+發布時間+分類+來源）
             if (hasKeyword) {
                 filteredList = filteredList.filter(news => {
                     const title = (news.title || '').toLowerCase();
@@ -864,9 +767,6 @@
                 let statusText = '無結果：';
                 
                 // 建構空狀態提示
-                if (currentSource !== 'all') {
-                    statusText += `${currentSource === 'rthk' ? '香港電台' : 'HK01'} `;
-                }
                 if (currentFilter !== 'all') {
                     statusText += `${currentFilter === 'featured' ? '僅精選' : '僅社會新聞'} `;
                 }
@@ -936,9 +836,6 @@
                 
                 // 更新搜尋狀態
                 let statusText = `找到 ${filteredList.length} 條結果：`;
-                if (currentSource !== 'all') {
-                    statusText += `${currentSource === 'rthk' ? '香港電台' : 'HK01'} `;
-                }
                 if (currentFilter !== 'all') {
                     statusText += `${currentFilter === 'featured' ? '僅精選' : '僅社會新聞'} `;
                 }
