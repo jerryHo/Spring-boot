@@ -384,23 +384,18 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 香港01新闻爬虫（修复无结果+内存优化+反爬适配）
- * 核心优化：移除HttpClient.close()、多选择器兼容、内存占用控制、反爬绕过
+ * 香港01新闻爬虫（修复无结果+内存优化+反爬适配+补充缺失方法）
+ * 新增：extractAllLinks()、extractChineseTitles() 兼容原有调用
  */
 public class NewsCrawlera {
     // ===================== 核心配置（可根据实际情况调整） =====================
-    // 目标爬取URL（香港01新闻首页，可替换为具体分类页）
     private static final String TARGET_URL = "https://www.hk01.com/";
-    // HTTP请求超时时间（秒）
     private static final int HTTP_TIMEOUT_SECONDS = 15;
-    // 最大重试次数
     private static final int MAX_RETRIES = 3;
-    // 重试间隔（毫秒）
     private static final int RETRY_DELAY_MS = 2000;
-    // 最大新闻条数（限制结果数量，减少内存占用）
     private static final int MAX_NEWS_COUNT = 20;
 
-    // 多选择器兼容（避免单一选择器失效，根据页面结构动态调整）
+    // 多选择器兼容
     private static final String[] NEWS_ITEM_SELECTORS = {
         "div[data-testid='content-card']",
         "div.card-item",
@@ -409,7 +404,7 @@ public class NewsCrawlera {
         "div[class^='news-item']"
     };
 
-    // 动态User-Agent池（降低反爬概率）
+    // 动态User-Agent池
     private static final String[] USER_AGENTS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
@@ -417,39 +412,28 @@ public class NewsCrawlera {
         "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36"
     };
 
-    // 真实Cookie（从浏览器复制，有效期约1周，需定期更新）
-    // 复制方式：浏览器F12 → Network → 刷新hk01 → 找请求头的Cookie值粘贴
+    // 真实Cookie（需替换为自己的）
     private static final String COOKIE = "HK01_LANG=zh-HK; _ga=GA1.1.123456789.1735000000; _gid=GA1.1.987654321.1735000000; accept_cookie=1; HK01_SESSION=xxx";
 
     // ===================== 单例与日志 =====================
     private static final Logger log = LoggerFactory.getLogger(NewsCrawlera.class);
     
-    // HttpClient单例（线程安全，无需close()，全局复用）
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
-            .followRedirects(HttpClient.Redirect.NORMAL)  // 跟随重定向
+            .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    // ===================== 核心方法 =====================
-    /**
-     * 爬取完整新闻列表（核心方法）
-     * @return 有效新闻列表（最多MAX_NEWS_COUNT条）
-     */
+    // ===================== 核心方法（原有） =====================
     public List<NewsItem> extractCompleteNewsList() {
         List<NewsItem> newsList = new ArrayList<>(MAX_NEWS_COUNT);
         int retryCount = 0;
 
-        // 重试机制
         while (retryCount < MAX_RETRIES) {
             try {
-                // 1. 构建反爬请求头
                 HttpRequest request = buildAntiCrawlRequest();
-                
-                // 2. 发送请求并获取响应
                 HttpResponse<String> response = HTTP_CLIENT.send(request, 
                         HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 
-                // 校验响应状态
                 if (!validateResponse(response)) {
                     retryCount++;
                     log.warn("第{}次重试：响应状态异常", retryCount);
@@ -457,15 +441,11 @@ public class NewsCrawlera {
                     continue;
                 }
 
-                // 3. 内存优化：只解析新闻容器部分DOM（丢弃无关内容）
                 String responseBody = response.body();
                 String newsContainerHtml = extractNewsContainerHtml(responseBody);
                 Document doc = parseMinimalDom(newsContainerHtml);
-                
-                // 释放大字符串内存
-                responseBody = null;
+                responseBody = null; // 释放内存
 
-                // 4. 多选择器匹配新闻元素（避免选择器失效）
                 Elements newsElements = matchNewsElements(doc);
                 if (newsElements.isEmpty()) {
                     retryCount++;
@@ -474,10 +454,7 @@ public class NewsCrawlera {
                     continue;
                 }
 
-                // 5. 解析新闻（逐个处理，减少内存占用）
                 parseNewsItems(newsElements, newsList);
-                
-                // 爬取成功，跳出重试
                 break;
 
             } catch (InterruptedException e) {
@@ -496,15 +473,44 @@ public class NewsCrawlera {
             }
         }
 
-        // 日志输出结果
         log.info("最终爬取到 {} 条有效新闻", newsList.size());
         return newsList;
     }
 
-    // ===================== 辅助方法（反爬+内存优化） =====================
+    // ===================== 补充缺失方法（解决编译错误） =====================
     /**
-     * 构建反爬请求（动态UA、Cookie、完整请求头）
+     * 提取所有新闻链接（兼容原有调用）
+     * @return 新闻链接列表
      */
+    public List<String> extractAllLinks() {
+        List<NewsItem> newsList = extractCompleteNewsList();
+        List<String> linkList = new ArrayList<>();
+        for (NewsItem news : newsList) {
+            if (news.getNewsUrl() != null && !news.getNewsUrl().isEmpty()) {
+                linkList.add(news.getNewsUrl());
+            }
+        }
+        log.info("提取到 {} 条有效新闻链接", linkList.size());
+        return linkList;
+    }
+
+    /**
+     * 提取所有中文标题（兼容原有调用）
+     * @return 中文标题列表
+     */
+    public List<String> extractChineseTitles() {
+        List<NewsItem> newsList = extractCompleteNewsList();
+        List<String> titleList = new ArrayList<>();
+        for (NewsItem news : newsList) {
+            if (news.getTitle() != null && !news.getTitle().isEmpty()) {
+                titleList.add(news.getTitle());
+            }
+        }
+        log.info("提取到 {} 条有效中文标题", titleList.size());
+        return titleList;
+    }
+
+    // ===================== 辅助方法（原有） =====================
     private HttpRequest buildAntiCrawlRequest() {
         return HttpRequest.newBuilder()
                 .uri(URI.create(TARGET_URL))
@@ -516,28 +522,21 @@ public class NewsCrawlera {
                 .header("Cookie", COOKIE)
                 .header("Cache-Control", "no-cache")
                 .header("Pragma", "no-cache")
-                .header("DNT", "1")  // 拒绝追踪
+                .header("DNT", "1")
                 .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
                 .GET()
                 .build();
     }
 
-    /**
-     * 获取随机User-Agent
-     */
     private String getRandomUserAgent() {
         Random random = new Random();
         return USER_AGENTS[random.nextInt(USER_AGENTS.length)];
     }
 
-    /**
-     * 验证响应有效性
-     */
     private boolean validateResponse(HttpResponse<String> response) {
         int statusCode = response.statusCode();
         log.info("HTTP响应状态码：{}", statusCode);
         
-        // 200为正常，其他状态码（403/401/503）均为被拦截
         if (statusCode != 200) {
             String shortBody = response.body().length() > 500 
                     ? response.body().substring(0, 500) 
@@ -546,7 +545,6 @@ public class NewsCrawlera {
             return false;
         }
         
-        // 校验响应体是否为空
         if (response.body().isEmpty()) {
             log.error("响应体为空");
             return false;
@@ -554,12 +552,8 @@ public class NewsCrawlera {
         return true;
     }
 
-    /**
-     * 内存优化：只提取新闻容器部分HTML（减少DOM解析范围）
-     */
     private String extractNewsContainerHtml(String fullHtml) {
-        // 新闻列表父容器（根据hk01页面结构调整，可F12查看）
-        String startTag = "<div class='news-list-container'>";  // 替换为实际父容器标签
+        String startTag = "<div class='news-list-container'>";
         String endTag = "</div>";
 
         int startIndex = fullHtml.indexOf(startTag);
@@ -576,21 +570,15 @@ public class NewsCrawlera {
         return fullHtml.substring(startIndex, endIndex + endTag.length());
     }
 
-    /**
-     * 内存优化：最小化DOM解析（禁用格式化、大纲，减少内存占用）
-     */
     private Document parseMinimalDom(String html) {
         return Jsoup.parse(html, TARGET_URL, Parser.htmlParser())
                 .outputSettings(new Document.OutputSettings()
                         .charset(StandardCharsets.UTF_8)
-                        .prettyPrint(false)  // 禁用格式化
-                        .outline(false)      // 禁用大纲
+                        .prettyPrint(false)
+                        .outline(false)
                         .syntax(Document.OutputSettings.Syntax.html));
     }
 
-    /**
-     * 多选择器匹配新闻元素
-     */
     private Elements matchNewsElements(Document doc) {
         Elements newsElements = new Elements();
         for (String selector : NEWS_ITEM_SELECTORS) {
@@ -604,20 +592,15 @@ public class NewsCrawlera {
         return newsElements;
     }
 
-    /**
-     * 解析新闻条目（逐个处理，及时释放引用）
-     */
     private void parseNewsItems(Elements newsElements, List<NewsItem> newsList) {
         int count = 0;
         for (Element card : newsElements) {
-            // 限制最大条数，避免内存溢出
             if (count >= MAX_NEWS_COUNT) {
                 break;
             }
 
             try {
                 NewsItem news = parseSingleNews(card);
-                // 验证新闻有效性
                 if (isValidNews(news)) {
                     newsList.add(news);
                     count++;
@@ -625,23 +608,17 @@ public class NewsCrawlera {
             } catch (Exception e) {
                 log.error("解析单条新闻失败", e);
             } finally {
-                // 手动置空，释放Element引用（加速GC）
-                card = null;
+                card = null; // 释放引用
             }
         }
     }
 
-    /**
-     * 解析单条新闻
-     */
     private NewsItem parseSingleNews(Element card) {
         NewsItem news = new NewsItem();
         
-        // 标题（多选择器兼容）
         Element titleEl = card.selectFirst("h3,a[class*='title'],div[class*='title']");
         if (titleEl != null) {
             news.setTitle(titleEl.text().trim());
-            // 新闻链接
             if (titleEl.tagName().equals("a")) {
                 news.setNewsUrl(absolutizeUrl(titleEl.attr("href")));
             } else {
@@ -652,21 +629,17 @@ public class NewsCrawlera {
             }
         }
 
-        // 分类
         Element categoryEl = card.selectFirst("span[class*='category'],div[class*='category']");
         if (categoryEl != null) {
             news.setCategory(categoryEl.text().trim());
         }
 
-        // 发布时间
         Element timeEl = card.selectFirst("time,span[class*='time'],div[class*='time']");
         if (timeEl != null) {
             String timeText = timeEl.text().trim();
-            // 格式化时间（根据hk01的时间格式调整，示例：2025-12-07 10:00）
-            news.setPublishTimeFormatted(formatPublishTime(timeText));
+            news.setPublishTimeFormatted(timeText);
         }
 
-        // 图片链接
         Element imgEl = card.selectFirst("img");
         if (imgEl != null) {
             news.setImageUrl(absolutizeUrl(imgEl.attr("src")));
@@ -675,9 +648,6 @@ public class NewsCrawlera {
         return news;
     }
 
-    /**
-     * 补全相对URL为绝对URL
-     */
     private String absolutizeUrl(String relativeUrl) {
         if (relativeUrl == null || relativeUrl.isEmpty() || relativeUrl.startsWith("http")) {
             return relativeUrl;
@@ -690,32 +660,19 @@ public class NewsCrawlera {
         }
     }
 
-    /**
-     * 格式化发布时间（根据实际返回格式调整）
-     */
-    private String formatPublishTime(String rawTime) {
-        // 示例：rawTime = "12小時前" → 转换为当前时间偏移；或直接返回原始格式
-        // 可根据hk01的时间格式自定义逻辑，这里先返回原始值
-        return rawTime;
-    }
-
-    /**
-     * 验证新闻有效性（过滤空数据）
-     */
     private boolean isValidNews(NewsItem news) {
         return news.getTitle() != null && !news.getTitle().isEmpty()
                 && news.getNewsUrl() != null && !news.getNewsUrl().isEmpty();
     }
 
-    // ===================== 内部类：新闻实体（精简字段，减少内存） =====================
+    // ===================== 内部类：新闻实体 =====================
     public static class NewsItem {
-        private String title;              // 新闻标题（必要）
-        private String category;           // 新闻分类（必要）
-        private String publishTimeFormatted; // 格式化发布时间（必要）
-        private String newsUrl;            // 新闻链接（必要）
-        private String imageUrl;           // 图片链接（可选）
+        private String title;
+        private String category;
+        private String publishTimeFormatted;
+        private String newsUrl;
+        private String imageUrl;
 
-        // Getter & Setter（精简，只保留必要字段）
         public String getTitle() { return title; }
         public void setTitle(String title) { this.title = title; }
 
@@ -742,20 +699,18 @@ public class NewsCrawlera {
         }
     }
 
-    // ===================== 测试方法（可选） =====================
+    // ===================== 测试方法 =====================
     public static void main(String[] args) {
         NewsCrawlera crawler = new NewsCrawlera();
-        List<NewsItem> newsList = crawler.extractCompleteNewsList();
         
-        // 打印结果
-        for (NewsItem news : newsList) {
-            System.out.println("===== 新闻 =====");
-            System.out.println("标题：" + news.getTitle());
-            System.out.println("分类：" + news.getCategory());
-            System.out.println("时间：" + news.getPublishTimeFormatted());
-            System.out.println("链接：" + news.getNewsUrl());
-            System.out.println("图片：" + news.getImageUrl());
-            System.out.println("================\n");
-        }
+        // 测试补充的方法
+        List<String> links = crawler.extractAllLinks();
+        List<String> titles = crawler.extractChineseTitles();
+        
+        System.out.println("===== 新闻链接 =====");
+        links.forEach(System.out::println);
+        
+        System.out.println("\n===== 新闻标题 =====");
+        titles.forEach(System.out::println);
     }
 }
