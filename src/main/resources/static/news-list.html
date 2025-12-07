@@ -167,8 +167,14 @@
             padding-left: 40px;
         }
 
-        /* 篩選按鈕組 */
-        .filter-group {
+        /* 篩選按鈕組 - 來源+類型 */
+        .filter-wrapper {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .source-filter-group, .type-filter-group {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -438,7 +444,7 @@
                 align-items: stretch;
             }
 
-            .filter-group {
+            .filter-wrapper {
                 justify-content: center;
             }
 
@@ -536,17 +542,33 @@
                 <div class="search-status-tip" id="searchStatusTip">輸入關鍵字開始搜尋</div>
             </div>
 
-            <!-- 類型篩選按鈕 -->
-            <div class="filter-group">
-                <button class="filter-btn active" id="filterAll" onclick="setFilter('all')">
-                    <i class="fa fa-th"></i> 全部
-                </button>
-                <button class="filter-btn" id="filterFeatured" onclick="setFilter('featured')">
-                    <i class="fa fa-star"></i> 僅精選
-                </button>
-                <button class="filter-btn" id="filterSocial" onclick="setFilter('social')">
-                    <i class="fa fa-users"></i> 僅社會新聞
-                </button>
+            <!-- 篩選按鈕組 - 來源+類型 -->
+            <div class="filter-wrapper">
+                <!-- 來源篩選 -->
+                <div class="source-filter-group">
+                    <button class="filter-btn active" id="sourceAll" onclick="setSource('all')">
+                        <i class="fa fa-globe"></i> 全部來源
+                    </button>
+                    <button class="filter-btn" id="sourceHk01" onclick="setSource('hk01')">
+                        <i class="fa fa-newspaper-o"></i> HK01
+                    </button>
+                    <button class="filter-btn" id="sourceRthk" onclick="setSource('rthk')">
+                        <i class="fa fa-radio"></i> RTHK
+                    </button>
+                </div>
+
+                <!-- 類型篩選 -->
+                <div class="type-filter-group">
+                    <button class="filter-btn active" id="filterAll" onclick="setFilter('all')">
+                        <i class="fa fa-th"></i> 全部
+                    </button>
+                    <button class="filter-btn" id="filterFeatured" onclick="setFilter('featured')">
+                        <i class="fa fa-star"></i> 僅精選
+                    </button>
+                    <button class="filter-btn" id="filterSocial" onclick="setFilter('social')">
+                        <i class="fa fa-users"></i> 僅社會新聞
+                    </button>
+                </div>
             </div>
 
             <!-- 刷新按鈕 -->
@@ -584,7 +606,8 @@
         let isLoading = false;
         let autoUpdateTimer = null;
         let originalNewsList = []; // 儲存原始數據（用於篩選/搜尋）
-        let currentFilter = 'all'; // 預設篩選：全部
+        let currentFilter = 'all'; // 當前類型篩選：all/featured/social
+        let currentSource = 'all'; // 當前來源篩選：all/hk01/rthk
         let currentSearchKeyword = ''; // 預設搜尋：空
         let searchDebounceTimer = null; // 防彈搜尋計時器
         const DEBOUNCE_DELAY = 500; // 即時搜尋防彈延遲（500ms）
@@ -751,6 +774,32 @@
                 });
         }
 
+        // 設定來源篩選
+        function setSource(sourceType) {
+            // 更新按鈕激活狀態
+            document.querySelectorAll('.source-filter-group .filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`source${sourceType === 'all' ? 'All' : (sourceType === 'hk01' ? 'Hk01' : 'Rthk')}`).classList.add('active');
+            
+            // 更新當前來源篩選條件
+            currentSource = sourceType;
+            
+            // 重新套用篩選
+            applyFilterAndSearch();
+        }
+
+        // 設定類型篩選
+        function setFilter(filterType) {
+            // 更新按鈕激活狀態
+            document.querySelectorAll('.type-filter-group .filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`filter${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`).classList.add('active');
+            
+            // 更新當前類型篩選條件
+            currentFilter = filterType;
+            
+            // 重新套用篩選
+            applyFilterAndSearch();
+        }
+
         // 初始化搜尋事件（即時搜尋+清空按鈕）
         function initSearchEvents() {
             const searchInput = document.getElementById('searchInput');
@@ -804,19 +853,6 @@
             document.getElementById('searchStatusTip').textContent = text;
         }
 
-        // 設定類型篩選（all/featured/social）
-        function setFilter(filterType) {
-            // 更新按鈕激活狀態
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`filter${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`).classList.add('active');
-            
-            // 更新當前篩選條件
-            currentFilter = filterType;
-            
-            // 重新套用篩選
-            applyFilterAndSearch();
-        }
-
         // 關鍵字高亮
         function highlightKeyword(text, keyword) {
             if (!text || !keyword) return text;
@@ -828,19 +864,24 @@
             return text.replace(regex, '<span class="highlight">$1</span>');
         }
 
-        // 套用篩選+搜尋（核心邏輯）
+        // 套用篩選+搜尋（核心邏輯：來源+類型+搜尋）
         function applyFilterAndSearch() {
             let filteredList = [...originalNewsList];
             const hasKeyword = currentSearchKeyword.length > 0;
 
-            // 步驟1：套用類型篩選
+            // 步驟1：來源篩選
+            if (currentSource !== 'all') {
+                filteredList = filteredList.filter(news => news.source === currentSource);
+            }
+
+            // 步驟2：類型篩選
             if (currentFilter === 'featured') {
                 filteredList = filteredList.filter(news => news.featured === true);
             } else if (currentFilter === 'social') {
                 filteredList = filteredList.filter(news => news.category === '社會新聞');
             }
 
-            // 步驟2：多欄位搜尋（標題+發布時間+分類+來源）
+            // 步驟3：多欄位搜尋（標題+發布時間+分類+來源）
             if (hasKeyword) {
                 filteredList = filteredList.filter(news => {
                     const title = (news.title || '').toLowerCase();
@@ -867,13 +908,17 @@
                 let emptyDesc = '暫時未找到任何新聞內容<br>可試下刷新頁面或調整搜尋條件';
                 
                 // 搜尋/篩選導致空結果的文案調整
-                if (hasKeyword || currentFilter !== 'all') {
+                if (hasKeyword || currentFilter !== 'all' || currentSource !== 'all') {
                     emptyTitle = '無匹配結果';
                     let filterText = '';
+                    let sourceText = '';
+                    
                     if (currentFilter === 'featured') filterText = '僅精選';
                     if (currentFilter === 'social') filterText = '僅社會新聞';
+                    if (currentSource === 'hk01') sourceText = 'HK01';
+                    if (currentSource === 'rthk') sourceText = 'RTHK';
                     
-                    emptyDesc = `未找到「${currentSearchKeyword || '全部'}」相關的${filterText ? filterText + ' ' : ''}新聞<br>可試下放寬搜尋條件或刷新頁面`;
+                    emptyDesc = `未找到「${currentSearchKeyword || '全部'}」相關的${sourceText ? sourceText + ' ' : ''}${filterText ? filterText + ' ' : ''}新聞<br>可試下放寬搜尋條件或刷新頁面`;
                 }
                 
                 document.getElementById('emptyTitle').textContent = emptyTitle;
@@ -935,6 +980,9 @@
                 
                 // 更新搜尋狀態
                 let statusText = `找到 ${filteredList.length} 條結果：`;
+                if (currentSource !== 'all') {
+                    statusText += `${currentSource === 'hk01' ? 'HK01' : 'RTHK'} `;
+                }
                 if (currentFilter !== 'all') {
                     statusText += `${currentFilter === 'featured' ? '僅精選' : '僅社會新聞'} `;
                 }
