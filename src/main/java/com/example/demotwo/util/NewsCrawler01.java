@@ -468,16 +468,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Component
 public class NewsCrawler01 {
-    // ===================== 核心配置（精准匹配香港01） =====================
-    private static final String HK01_TARGET_URL = "https://www.hk01.com/"; // 香港01首页（包含最新新闻）
+    // ===================== 核心配置 =====================
+    private static final String HK01_TARGET_URL = "https://www.hk01.com/";
     private static final int HTTP_TIMEOUT_SECONDS = 20;
     private static final int MAX_RETRIES = 3;
-    private static final int MAX_NEWS_COUNT = 15; // 最多提取15条
+    private static final int MAX_NEWS_COUNT = 15;
     private static final long RETRY_DELAY_MS = 2000;
 
     private static final Logger log = LoggerFactory.getLogger(NewsCrawler01.class);
@@ -487,14 +485,14 @@ public class NewsCrawler01 {
             .build();
 
     /**
-     * 香港01新闻实体类（精准匹配目标HTML字段）
+     * 香港01新闻实体类
      */
     public static class NewsItem {
-        private String title;       // 新闻标题（如：立法會選舉｜譚詠麟、曾志偉投票　甄子丹：望團結一心幫大埔災民）
+        private String title;       // 新闻标题
         private String link;        // 新闻绝对链接
         private String category;    // 分类（如：政情）
-        private String publishTime; // 发布时间（如：2025-12-07T08:25:39.000Z 或 4分鐘前）
-        private String imageUrl;    // 新闻图片链接
+        private String publishTime; // 发布时间
+        private String imageUrl;    // 新闻图片链接（修复后可正常提取）
 
         // Getter & Setter
         public String getTitle() { return title; }
@@ -508,7 +506,6 @@ public class NewsCrawler01 {
         public String getImageUrl() { return imageUrl; }
         public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
-        // 重写toString，方便日志查看
         @Override
         public String toString() {
             return "NewsItem{" +
@@ -516,17 +513,16 @@ public class NewsCrawler01 {
                     ", 分类='" + category + '\'' +
                     ", 发布时间='" + publishTime + '\'' +
                     ", 链接='" + link + '\'' +
-                    ", 图片链接='" + imageUrl + '\'' +
+                    ", 图片链接='" + (imageUrl == null ? "无" : imageUrl) + '\'' +
                     '}';
         }
     }
 
-    // ===================== 核心方法：提取香港01新闻（精准匹配HTML结构） =====================
+    // ===================== 核心方法：提取香港01新闻 =====================
     public List<NewsItem> extractCompleteNewsList() {
         List<NewsItem> newsList = new ArrayList<>();
         int retryCount = 0;
 
-        // 内存监控
         Runtime runtime = Runtime.getRuntime();
         long usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
         long maxMemory = runtime.maxMemory() / 1024 / 1024;
@@ -536,16 +532,16 @@ public class NewsCrawler01 {
             try {
                 log.info("开始提取香港01新闻（第{}次尝试），目标URL：{}", retryCount + 1, HK01_TARGET_URL);
 
-                // 1. 构建反爬请求（已移除受限头）
+                // 1. 构建反爬请求
                 HttpRequest request = buildHk01Request();
 
-                // 2. 发送请求并获取响应
+                // 2. 发送请求
                 HttpResponse<String> response = HTTP_CLIENT.send(
                         request,
                         HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
                 );
 
-                // 3. 验证响应有效性
+                // 3. 验证响应
                 if (!validateResponse(response)) {
                     retryCount++;
                     log.warn("第{}次请求响应无效，{}ms后重试", retryCount, RETRY_DELAY_MS);
@@ -553,47 +549,34 @@ public class NewsCrawler01 {
                     continue;
                 }
 
-                // 4. 处理编码（确保UTF-8，避免中文乱码）
+                // 4. 处理编码
                 String rawHtml = response.body();
                 String utf8Html = new String(rawHtml.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
 
-                // 打印响应体预览（调试用，确认是否获取到正确页面）
-                log.warn("=== 香港01响应体预览（前1500字符）===");
-                String preview = utf8Html.length() > 1500 ? utf8Html.substring(0, 1500) : utf8Html;
-                log.warn(preview);
-
-                // 5. 解析HTML（核心：精准匹配目标新闻容器）
+                // 5. 解析HTML
                 Document doc = Jsoup.parse(utf8Html, HK01_TARGET_URL, Parser.htmlParser());
-
-                // ========== 关键：匹配你提供的新闻容器结构 ==========
-                // 选择器：data-testid="content-card" + class="content-card__main"（精准定位单条新闻）
                 Elements newsContainers = doc.select("div[data-testid='content-card'].content-card__main");
                 log.info("共匹配到香港01新闻容器：{}条", newsContainers.size());
 
                 // 6. 遍历解析每条新闻
                 int count = 0;
                 for (Element container : newsContainers) {
-                    if (count >= MAX_NEWS_COUNT) break; // 限制最大提取数量
+                    if (count >= MAX_NEWS_COUNT) break;
 
                     NewsItem news = parseSingleNews(container);
-                    // 过滤无效新闻（标题+链接非空）
                     if (news.getTitle() != null && !news.getTitle().isEmpty()
                             && news.getLink() != null && !news.getLink().isEmpty()) {
                         newsList.add(news);
                         count++;
                         log.debug("解析到有效新闻：{}", news);
-                    } else {
-                        log.warn("跳过无效新闻（标题/链接为空）：{}", news);
                     }
                 }
 
-                // 7. 打印结果日志
-                log.info("=== 香港01新闻提取完成 | 有效新闻数：{} ===", newsList.size());
-                for (int i = 0; i < newsList.size(); i++) {
-                    log.info("新闻 {}: {}", i + 1, newsList.get(i));
-                }
+                log.info("=== 香港01新闻提取完成 | 有效新闻数：{} | 含图片新闻数：{} ===",
+                        newsList.size(),
+                        newsList.stream().filter(item -> item.getImageUrl() != null).count()
+                );
 
-                // 内存监控
                 usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
                 log.info("【内存监控】香港01新闻列表提取完成 | 已使用：{}MB | 最大可用：{}MB", usedMemory, maxMemory);
 
@@ -621,91 +604,109 @@ public class NewsCrawler01 {
         return new ArrayList<>();
     }
 
-    // ===================== 核心方法：解析单条新闻（精准匹配目标HTML字段） =====================
-    /**
-     * 解析单条新闻容器（div[data-testid='content-card'].content-card__main）
-     * 提取标题、链接、分类、发布时间、图片链接
-     */
+    // ===================== 核心修复：解析单条新闻（优化图片提取逻辑） =====================
     private NewsItem parseSingleNews(Element newsContainer) {
         NewsItem news = new NewsItem();
 
         try {
-            // ========== 1. 提取标题 + 新闻链接 ==========
-            // 结构：<a data-testid="content-card-title" class="card-title" href="相对路径">标题</a>
+            // 1. 提取标题 + 链接
             Element titleLink = newsContainer.selectFirst("a[data-testid='content-card-title']");
             if (titleLink != null) {
                 String title = titleLink.text().trim();
                 String relativeLink = titleLink.attr("href").trim();
-                // 补全绝对链接（相对路径 -> 完整URL）
-                String fullLink = relativeLink.startsWith("http") 
-                        ? relativeLink 
-                        : "https://www.hk01.com" + relativeLink;
-
+                String fullLink = relativeLink.startsWith("http") ? relativeLink : "https://www.hk01.com" + relativeLink;
                 news.setTitle(title);
                 news.setLink(fullLink);
                 log.debug("提取标题：{} | 链接：{}", title, fullLink);
             }
 
-            // ========== 2. 提取分类（如：政情） ==========
-            // 结构：<div data-testid="content-card-channel" class="card-header"> -> <div class="card-category">分类</div>
+            // 2. 提取分类
             Element categoryEl = newsContainer.selectFirst("div[data-testid='content-card-channel'] .card-category div");
             if (categoryEl != null) {
-                String category = categoryEl.text().trim();
-                news.setCategory(category);
-                log.debug("提取分类：{}", category);
+                news.setCategory(categoryEl.text().trim());
+                log.debug("提取分类：{}", news.getCategory());
             }
 
-            // ========== 3. 提取发布时间（优先取datetime属性，其次文本） ==========
-            // 结构：<time data-testid="content-card-time" datetime="2025-12-07T08:25:39.000Z">4 分鐘前</time>
+            // 3. 提取发布时间
             Element timeEl = newsContainer.selectFirst("time[data-testid='content-card-time']");
             if (timeEl != null) {
-                String publishTime = timeEl.attr("datetime").trim(); // 优先取标准时间格式
-                if (publishTime.isEmpty()) {
-                    publishTime = timeEl.text().trim(); // 若无则取显示文本（如：4 分鐘前）
-                }
-                news.setPublishTime(publishTime);
-                log.debug("提取发布时间：{}", publishTime);
+                String publishTime = timeEl.attr("datetime").trim();
+                news.setPublishTime(publishTime.isEmpty() ? timeEl.text().trim() : publishTime);
+                log.debug("提取发布时间：{}", news.getPublishTime());
             }
 
-            // ========== 4. 提取图片链接 ==========
-            // 结构：<div data-testid="content-card-thumbnail"> -> <img src="图片URL">
-            Element imageEl = newsContainer.selectFirst("div[data-testid='content-card-thumbnail'] img");
+            // ========== 核心修复：图片URL提取（穿透嵌套层级 + 多选择器兼容） ==========
+            // 问题根源：图片嵌套在多层div/a中，之前的选择器未覆盖完整层级
+            // 优化方案：
+            // 1. 优先匹配 data-testid 容器下的图片（精准）
+            // 2. 其次匹配 class 容器下的图片（兼容无data-testid的情况）
+            // 3. 支持 src 和 data-src（应对懒加载图片）
+            Element imageEl = null;
+
+            // 选择器1：匹配用户提供的HTML结构（div[data-testid='content-card-thumbnail'] → a → img）
+            imageEl = newsContainer.selectFirst("div[data-testid='content-card-thumbnail'] a img");
+            if (imageEl == null) {
+                // 选择器2：兼容无a标签嵌套的情况
+                imageEl = newsContainer.selectFirst("div[data-testid='content-card-thumbnail'] img");
+            }
+            if (imageEl == null) {
+                // 选择器3：通过class匹配图片容器（兜底）
+                imageEl = newsContainer.selectFirst("div.card-image__inner img, div.card-image__placeholder-wrapper img");
+            }
+
+            // 提取图片URL（优先src，次选data-src（懒加载图片））
             if (imageEl != null) {
                 String imageUrl = imageEl.attr("src").trim();
-                news.setImageUrl(imageUrl);
-                log.debug("提取图片链接：{}", imageUrl);
+                // 若src为空，尝试提取懒加载图片的data-src
+                if (imageUrl.isEmpty() || imageUrl.contains("placeholder") || imageUrl.contains("default")) {
+                    imageUrl = imageEl.attr("data-src").trim();
+                }
+                // 过滤无效图片URL
+                if (!imageUrl.isEmpty() && (imageUrl.startsWith("http") || imageUrl.startsWith("//"))) {
+                    // 补全协议（若URL以//开头）
+                    if (imageUrl.startsWith("//")) {
+                        imageUrl = "https:" + imageUrl;
+                    }
+                    news.setImageUrl(imageUrl);
+                    log.debug("提取图片链接：{}", imageUrl);
+                } else {
+                    log.debug("图片URL无效：{}（标题：{}）", imageUrl, news.getTitle());
+                }
+            } else {
+                // 打印未匹配到图片的新闻容器预览（便于调试）
+                log.debug("未匹配到图片（标题：{}），容器结构预览：{}",
+                        news.getTitle(),
+                        newsContainer.select("div.card-image__outer").html().substring(0, Math.min(newsContainer.select("div.card-image__outer").html().length(), 200))
+                );
             }
 
         } catch (Exception e) {
-            log.error("解析单条香港01新闻失败", e);
+            log.error("解析单条香港01新闻失败（标题：{}）", news.getTitle(), e);
         }
 
         return news;
     }
 
-    // ===================== 辅助方法：构建香港01反爬请求（已移除受限头） =====================
+    // ===================== 其他辅助方法（无修改） =====================
     private HttpRequest buildHk01Request() {
         return HttpRequest.newBuilder()
                 .uri(URI.create(HK01_TARGET_URL))
-                // 强反爬请求头（模拟真实浏览器，避免被识别）
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36")
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
                 .header("Accept-Language", "zh-HK,zh;q=0.9,en-US;q=0.8,en;q=0.7")
-                .header("Referer", "https://www.google.com/") // 模拟谷歌跳转
+                .header("Referer", "https://www.google.com/")
                 .header("Cache-Control", "max-age=0")
                 .header("Upgrade-Insecure-Requests", "1")
                 .header("Sec-Fetch-Dest", "document")
                 .header("Sec-Fetch-Mode", "navigate")
                 .header("Sec-Fetch-Site", "cross-site")
                 .header("Sec-Fetch-User", "?1")
-                // 关键：模拟Cookie（绕过基础反爬）
                 .header("Cookie", "HK01_LANG=zh-HK; _ga=GA1.1.123456789.1733568000; _gid=GA1.1.987654321.1733568000; accept_cookie=1; _fbp=fb.1.1733568000123.456789;")
                 .timeout(Duration.ofSeconds(HTTP_TIMEOUT_SECONDS))
                 .GET()
                 .build();
     }
 
-    // ===================== 辅助方法：验证响应有效性 =====================
     private boolean validateResponse(HttpResponse<String> response) {
         int statusCode = response.statusCode();
         if (statusCode != 200) {
@@ -719,16 +720,14 @@ public class NewsCrawler01 {
             return false;
         }
 
-        // 验证是否为香港01有效页面（关键词校验）
         if (!body.contains("hk01.com") && !body.contains("香港01") && !body.contains("content-card__main")) {
-            log.error("响应体非香港01有效页面（未匹配关键标识）");
+            log.error("响应体非香港01有效页面");
             return false;
         }
 
         return true;
     }
 
-    // ===================== 保留方法：提取所有链接/中文标题（兼容原有调用） =====================
     public List<String> extractAllLinks() {
         List<NewsItem> newsList = extractCompleteNewsList();
         List<String> linkList = new ArrayList<>();
@@ -736,13 +735,10 @@ public class NewsCrawler01 {
             if (news.getLink() != null && !news.getLink().isEmpty()) {
                 linkList.add(news.getLink());
             }
-            // 同时添加图片链接（可选）
             if (news.getImageUrl() != null && !news.getImageUrl().isEmpty()) {
                 linkList.add(news.getImageUrl());
             }
         }
-        log.info("提取香港01链接数（去重前）：{}", linkList.size());
-        // 去重
         linkList = linkList.stream().distinct().collect(Collectors.toList());
         log.info("提取香港01链接数（去重后）：{}", linkList.size());
         return linkList;
@@ -753,28 +749,23 @@ public class NewsCrawler01 {
         List<String> titleList = newsList.stream()
                 .map(NewsItem::getTitle)
                 .filter(title -> title != null && !title.isEmpty() && containsChinese(title))
-                .distinct() // 去重
+                .distinct()
                 .collect(Collectors.toList());
-
         log.info("提取香港01中文标题数：{}", titleList.size());
         return titleList;
     }
 
-    // 辅助方法：判断文本是否含中文
     private boolean containsChinese(String text) {
         if (text == null || text.isEmpty()) return false;
         return Pattern.compile("[\\u4E00-\\u9FA5\\u3000-\\u303F\\uFF00-\\uFFEF]").matcher(text).find();
     }
 
-    // ===================== 测试方法：本地运行验证 =====================
+    // 测试方法
     public static void main(String[] args) {
         NewsCrawler01 crawler = new NewsCrawler01();
         log.info("===== 开始测试香港01新闻爬虫 =====");
-        
-        // 测试提取完整新闻列表
         List<NewsItem> newsList = crawler.extractCompleteNewsList();
 
-        // 打印测试结果
         if (!newsList.isEmpty()) {
             System.out.println("\n===== 香港01新闻解析结果（前5条） =====");
             for (int i = 0; i < Math.min(newsList.size(), 5); i++) {
@@ -784,11 +775,11 @@ public class NewsCrawler01 {
                 System.out.println("分类：" + item.getCategory());
                 System.out.println("发布时间：" + item.getPublishTime());
                 System.out.println("链接：" + item.getLink());
-                System.out.println("图片链接：" + item.getImageUrl());
+                System.out.println("图片链接：" + (item.getImageUrl() == null ? "无" : item.getImageUrl()));
                 System.out.println("------------------------");
             }
         } else {
-            System.out.println("解析失败，未获取到有效新闻（可能是IP被拦截）");
+            System.out.println("解析失败，未获取到有效新闻");
         }
     }
 }
